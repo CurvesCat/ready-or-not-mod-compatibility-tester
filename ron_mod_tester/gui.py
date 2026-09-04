@@ -1307,11 +1307,6 @@ def main() -> int:
     get_logger().info("Application starting")
 
     root = Tk()
-    if getattr(sys, "frozen", False):
-        try:
-            root.iconbitmap(sys.executable)
-        except Exception:
-            pass
 
     lang = None
     if CONFIG_FILE.is_file():

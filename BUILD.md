@@ -7,7 +7,7 @@ The GUI uses the standard-library `tkinter`, and process monitoring uses
 python -m pip install psutil pyinstaller
 
 # GUI executable (windowed)
-python -m PyInstaller --onefile --windowed --name ReadyOrNot-ModCompatTester run_gui.py
+python -m PyInstaller --onefile --windowed --icon assets\icon.ico --name ReadyOrNot-ModCompatTester run_gui.py
 
 # CLI executable (console)
 python -m PyInstaller --onefile --console --name ReadyOrNot-ModCompatTester-cli run_cli.py

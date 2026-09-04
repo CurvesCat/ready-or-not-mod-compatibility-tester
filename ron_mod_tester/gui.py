@@ -23,6 +23,7 @@ from tkinter import (
     Y,
     BooleanVar,
     IntVar,
+    PhotoImage,
     StringVar,
     Tk,
     Toplevel,
@@ -69,6 +70,49 @@ def _key_for_label(table: dict, label: str, default: str) -> str:
         if value == label:
             return key
     return default
+
+
+MIT_LICENSE_TEXT_EN = """\
+MIT License
+
+Copyright (c) 2026 CurvesCat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+
+MIT_LICENSE_TEXT_ZH = """\
+MIT 许可证
+
+版权所有 (c) 2026 CurvesCat
+
+特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，允许其不受限制地
+处理本软件，包括但不限于使用、复制、修改、合并、发布、分发、再许可和/或销售本
+软件的副本，并允许向其提供本软件的人这样做，前提是遵守以下条件：
+
+上述版权声明和本许可声明应包含在本软件的所有副本或重要部分中。
+
+本软件按“原样”提供，不作任何明示或暗示的保证，包括但不限于适销性、特定用途适用
+性和非侵权性的保证。在任何情况下，作者或版权持有人均不对因本软件或使用本软件或
+与本软件有关的其他交易而产生或与之相关的任何索赔、损害赔偿或其他责任承担责任，
+无论是合同诉讼、侵权诉讼还是其他诉讼。
+"""
 
 
 class App:
@@ -290,6 +334,10 @@ class App:
             top_bar, text=t("tutorial"), command=self._open_tutorial
         )
         self.btn_tutorial.pack(side=RIGHT)
+        self.btn_about = ttk.Button(
+            top_bar, text=t("about"), command=self._open_about
+        )
+        self.btn_about.pack(side=RIGHT, padx=(0, 6))
         ttk.Label(
             main,
             text=t("app_desc"),
@@ -921,6 +969,83 @@ class App:
         text.configure(state="disabled")
         top.transient(self.root)
         top.grab_set()
+
+    def _avatar_path(self) -> Path | None:
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "assets" / "avatar.png")
+        candidates.append(Path(__file__).resolve().parent.parent / "assets" / "avatar.png")
+        candidates.append(Path.cwd() / "assets" / "avatar.png")
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def _open_about(self) -> None:
+        audit("open_about")
+        top = Toplevel(self.root)
+        top.title(t("about"))
+        top.geometry("560x620")
+        top.resizable(False, False)
+        top.transient(self.root)
+        top.grab_set()
+
+        main_about = ttk.Frame(top, padding=16)
+        main_about.pack(fill=BOTH, expand=True)
+
+        avatar_path = self._avatar_path()
+        avatar_image = None
+        if avatar_path is not None:
+            try:
+                avatar_image = PhotoImage(file=str(avatar_path))
+            except Exception:
+                avatar_image = None
+        if avatar_image is not None:
+            top.avatar_image = avatar_image  # keep reference alive
+            ttk.Label(main_about, image=avatar_image).pack(pady=(0, 8))
+
+        ttk.Label(
+            main_about,
+            text=f"{APP_NAME} v{VERSION}",
+            style="Title.TLabel",
+        ).pack()
+        ttk.Label(
+            main_about,
+            text=f"{t('author')}: {AUTHOR}",
+            style="Sub.TLabel",
+        ).pack(pady=(2, 8))
+
+        github = "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester"
+        ttk.Label(main_about, text=t("github") + ": " + github).pack()
+        ttk.Button(
+            main_about,
+            text=t("open_github"),
+            command=lambda: os.startfile(github),  # type: ignore[attr-defined]
+        ).pack(pady=(8, 4))
+
+        license_frame = ttk.LabelFrame(
+            main_about, text=t("license_title"), padding=8
+        )
+        license_frame.pack(fill=BOTH, expand=True, pady=(8, 0))
+        license_text = scrolledtext.ScrolledText(
+            license_frame,
+            wrap="word",
+            font=("Segoe UI", 9),
+            height=9,
+            state="normal",
+        )
+        license_text.pack(fill=BOTH, expand=True)
+        license_text.insert(
+            "1.0",
+            MIT_LICENSE_TEXT_EN
+            if get_language() == "en"
+            else MIT_LICENSE_TEXT_ZH,
+        )
+        license_text.configure(state="disabled")
+
+        ttk.Button(main_about, text="OK", command=top.destroy).pack(
+            pady=(10, 0)
+        )
 
     def _choose_language(self) -> None:
         audit("choose_language")

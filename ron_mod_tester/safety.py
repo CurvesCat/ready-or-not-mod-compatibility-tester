@@ -22,14 +22,33 @@ def is_mod_pak(name: str) -> bool:
     return name.lower().endswith(".pak") and not is_system_pak(name)
 
 
+def _safe_basename(name: str) -> bool:
+    """Reject names that could escape a directory (.., separators, empty)."""
+    if not name or name in (".", ".."):
+        return False
+    if "/" in name or "\\" in name:
+        return False
+    if ".." in name:
+        return False
+    return True
+
+
 def list_mod_paks(folder: Path, exclude: Path | None = None) -> list[Path]:
     """Return non-system ``.pak`` files in ``folder``, searching subfolders too."""
     if not folder or not folder.is_dir():
         return []
+    root = folder.resolve()
     items = [
         p
         for p in folder.rglob("*.pak")
         if p.is_file() and is_mod_pak(p.name)
+    ]
+    # Never follow junctions/symlinks that escape the chosen folder, so later
+    # quarantine/delete operations can never touch files outside it.
+    items = [
+        p
+        for p in items
+        if root in p.resolve().parents or p.resolve().parent == root
     ]
     if exclude is not None:
         excluded = exclude.resolve()
@@ -113,6 +132,8 @@ def create_backup(
     total = 0
     for p in sorted(mod_dir.iterdir()):
         if p.is_file():
+            if not _safe_basename(p.name):
+                continue
             stat = _file_stat(p)
             manifest["files"][p.name] = {
                 "size": stat["size"],
@@ -161,6 +182,8 @@ def restore_backup(
     restored: list[str] = []
     for name, meta in manifest.get("files", {}).items():
         if meta.get("dir"):
+            continue
+        if not _safe_basename(name):
             continue
         source = backup_dir / name
         if source.is_file():

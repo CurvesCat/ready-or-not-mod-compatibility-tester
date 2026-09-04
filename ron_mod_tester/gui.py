@@ -14,6 +14,7 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
 
 from tkinter import (
     BOTH,
+    Canvas,
     Checkbutton,
     END,
     HORIZONTAL,
@@ -275,13 +276,55 @@ class App:
         )
 
     def _build_ui(self) -> None:
-        if hasattr(self, "main"):
-            self.main.destroy()
+        if hasattr(self, "_scroll_canvas"):
+            self._scroll_canvas.destroy()
+            self._scroll_vsb.destroy()
         pad = {"padx": 6, "pady": 4}
 
-        main = ttk.Frame(self.root, padding=8)
+        holder = ttk.Frame(self.root)
+        holder.pack(fill=BOTH, expand=True)
+
+        self._scroll_vsb = ttk.Scrollbar(holder, orient="vertical")
+        self._scroll_canvas = Canvas(
+            holder,
+            bg="#F5F5F7",
+            highlightthickness=0,
+            yscrollincrement=24,
+        )
+        self._scroll_vsb.configure(command=self._scroll_canvas.yview)
+        self._scroll_canvas.configure(yscrollcommand=self._scroll_vsb.set)
+        self._scroll_vsb.pack(side=RIGHT, fill=Y)
+        self._scroll_canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+        main = ttk.Frame(self._scroll_canvas, padding=8)
         self.main = main
-        main.pack(fill=BOTH, expand=True)
+        self._scroll_window = self._scroll_canvas.create_window(
+            (0, 0), window=main, anchor="nw"
+        )
+
+        def _sync_scroll_region(_event=None) -> None:
+            self._scroll_canvas.configure(
+                scrollregion=self._scroll_canvas.bbox("all")
+            )
+
+        def _sync_scroll_size(event) -> None:
+            bbox = self._scroll_canvas.bbox("all")
+            natural_h = bbox[3] if bbox else event.height
+            self._scroll_canvas.itemconfigure(
+                self._scroll_window,
+                width=event.width,
+                height=max(event.height, natural_h),
+            )
+            _sync_scroll_region()
+
+        def _on_wheel(event) -> str:
+            self._scroll_canvas.yview_scroll(int(-event.delta / 120), "units")
+            return "break"
+
+        main.bind("<Configure>", _sync_scroll_region)
+        self._scroll_canvas.bind("<Configure>", _sync_scroll_size)
+        self._scroll_canvas.bind("<MouseWheel>", _on_wheel)
+        main.bind("<MouseWheel>", _on_wheel)
 
         top_bar = ttk.Frame(main)
         top_bar.pack(fill=X, pady=(0, 4))
@@ -488,6 +531,18 @@ class App:
         ).pack(
             anchor="e", pady=(4, 0)
         )
+
+        def _bind_page_scroll(target) -> None:
+            if isinstance(target, scrolledtext.ScrolledText):
+                return
+            cls = target.winfo_class()
+            if cls in ("Treeview", "TCombobox", "TSpinbox", "Listbox"):
+                return
+            target.bind("<MouseWheel>", _on_wheel)
+            for child in target.winfo_children():
+                _bind_page_scroll(child)
+
+        _bind_page_scroll(main)
 
     def _path_row(
         self,

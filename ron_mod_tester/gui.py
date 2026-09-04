@@ -6,6 +6,12 @@ import queue
 import sys
 import threading
 from pathlib import Path
+
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    _mei = sys._MEIPASS
+    os.environ.setdefault("TCL_LIBRARY", os.path.join(_mei, "tcl", "tcl8.6"))
+    os.environ.setdefault("TK_LIBRARY", os.path.join(_mei, "tcl", "tk8.6"))
+
 from tkinter import (
     BOTH,
     Checkbutton,

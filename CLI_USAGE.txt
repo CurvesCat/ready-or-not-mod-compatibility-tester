@@ -1,0 +1,372 @@
+================================================================
+Ready or Not Mod Compatibility Tester - Command Line Usage Guide
+================================================================
+
+Author: CurvesCat
+Project: https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester
+Nexus Mods: https://www.nexusmods.com/readyornot/mods/8575
+
+This document explains how to use the command-line version
+(ReadyOrNot-ModCompatTester-cli.exe) in detail.
+
+----------------------------------------------------------------
+1. WHAT THIS TOOL DOES
+----------------------------------------------------------------
+
+Ready or Not Mod Compatibility Tester tests .pak mods one by one after a
+Ready or Not game update. For each mod it:
+
+  1. Puts the mod into the game mod folder.
+  2. Starts the game.
+  3. Watches whether the game window appears and stays stable.
+  4. Watches whether the game crashes, shows an error dialog, or creates a
+     new crash report.
+  5. Records the result.
+  6. Handles unusable mods according to the option you choose.
+
+The command-line version provides the same test engine as the GUI version,
+without the graphical interface.
+
+IMPORTANT LIMITATION:
+This tool can only detect crashes during the startup / main-menu stage.
+If a mod only breaks after you enter a mission, equip a weapon, or load a
+specific level, the tool cannot detect that automatically. You must verify
+that kind of problem manually, because Ready or Not does not write a standard
+Unreal Engine log.
+
+----------------------------------------------------------------
+2. REQUIREMENTS
+----------------------------------------------------------------
+
+- Windows 10 or Windows 11
+- Steam version of Ready or Not installed
+- Steam logged in
+
+The standalone EXE does not need Python.
+
+----------------------------------------------------------------
+3. SAFETY WARNINGS - READ FIRST
+----------------------------------------------------------------
+
+- This tool starts the game many times.
+- It can copy, move, rename, or delete .pak mod files depending on the
+  options you select.
+- It never touches game system files such as pakchunk*-Windows.pak.
+- Deleting mods (--disposition delete) is permanent and cannot be undone.
+- Always back up your important saves and mods before testing.
+- You use this tool at your own risk.
+
+It is also strongly recommended to:
+  - Close Ready or Not before testing, or let the tool close it
+    automatically.
+  - Test suspicious mods in small batches to reduce SSD usage and save time.
+
+----------------------------------------------------------------
+4. HOW TO RUN THE COMMAND-LINE TOOL
+----------------------------------------------------------------
+
+Do NOT double-click ReadyOrNot-ModCompatTester-cli.exe. It is a console
+program and needs arguments. When you run it without arguments, it shows a
+short launcher hint and waits for you to press Enter.
+
+Open PowerShell:
+
+  1. Press the Windows key.
+  2. Type "powershell".
+  3. Press Enter.
+
+Change to the folder that contains the CLI EXE. For example:
+
+  cd C:\Path\To\Your\Folder
+
+Then run a command. Put paths that contain spaces in double quotes.
+
+Example:
+
+  .\ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated
+
+The tool prints progress to the console. Do not close the console window
+until the test finishes unless you want to stop the test with Ctrl+C.
+
+----------------------------------------------------------------
+5. QUICK EXAMPLES
+----------------------------------------------------------------
+
+5.1 Test every .pak mod in a candidate folder (recommended first step)
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated
+
+5.2 Test a few individual .pak files
+
+  ReadyOrNot-ModCompatTester-cli.exe --files "D:\Mods\RoN\ModA.pak" "D:\Mods\RoN\ModB.pak" --mode isolated
+
+5.3 Test files but skip some of them
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --exclude "D:\Mods\RoN\Old.pak" --mode isolated
+
+5.4 Test the mods already installed in the game folder
+
+  ReadyOrNot-ModCompatTester-cli.exe --source installed --mode isolated
+
+5.5 Use the strict strategy for a final check
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode strict --stable 60
+
+5.6 Run a warmup launch first (baseline without any mods)
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated --warmup
+
+5.7 Quarantine unusable mods (recommended)
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated --disposition quarantine
+
+5.8 Disable unusable mods by renaming them to .disabled
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated --disposition disable
+
+5.9 Record unusable mods but do not change them
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated --disposition record
+
+5.10 Delete unusable mods permanently
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated --disposition delete --yes-delete
+
+  WARNING: --disposition delete permanently deletes the unusable source
+  files. --yes-delete is required as a safety confirmation.
+
+5.11 Use an explicit game folder and executable
+
+  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --game "D:\Steam\steamapps\common\ReadyOrNot" --exe "D:\Steam\steamapps\common\ReadyOrNot\ReadyOrNot\Binaries\Win64\ReadyOrNotSteam-Win64-Shipping.exe"
+
+----------------------------------------------------------------
+6. UNDERSTANDING THE OPTIONS
+----------------------------------------------------------------
+
+--mods <folder>
+  Folder that contains the .pak mods you want to test.
+  Required when --source is folder and --files is not used.
+  Default: none
+
+--files <file1> <file2> ...
+  Individual .pak files to test. Multiple files are allowed.
+  Default: none
+
+--exclude <file1> <file2> ...
+  Files that should not be tested.
+  Default: none
+
+--source <folder|installed>
+  folder: test .pak mods from a candidate folder.
+  installed: test mods already placed in the game mod folder.
+  Default: folder
+
+--mode <isolated|strict>
+  isolated: test one mod at a time. Good for day-to-day checks.
+  strict: test one mod at a time with a longer observation window.
+          Good for final confirmation of important mods.
+  Default: isolated
+
+--disposition <quarantine|disable|delete|record>
+  quarantine: move unusable mods into a quarantine folder.
+  disable: rename unusable mods to .disabled.
+  delete: permanently delete unusable source files (requires --yes-delete).
+  record: only write the result to the report, do not change the mod.
+  Default: quarantine
+
+--yes-delete
+  Confirmation flag required when --disposition delete is used.
+  Without this flag, delete mode is rejected.
+
+--game <folder>
+  Game root folder. It must contain the ReadyOrNot folder.
+  Default: auto-detected
+
+--exe <path>
+  Full path to the ReadyOrNot game executable.
+  Default: auto-detected
+
+--mod-dir <folder>
+  Folder where mods are installed (for example the Paks or ~mods folder).
+  Default: auto-detected
+
+--report-dir <folder>
+  Folder where CSV/JSON reports and logs are written.
+  Default:
+    - folder source: *_test_reports next to the candidate folder.
+    - installed source: RoN_ModCompat_Reports next to the game folder.
+
+--stable <seconds>
+  Number of seconds the game must stay stable after its main window appears.
+  Default: 35
+
+--startup-timeout <seconds>
+  Maximum time to wait for the game window to appear.
+  Default: 120
+
+--menu-hold <seconds>
+  Extra observation seconds after a main-menu / engine-ready marker is seen.
+  Default: 6
+
+--warmup
+  Launch the game once without any mods before the real test.
+  This verifies that the clean game can start.
+
+--no-close
+  Do not close an already running game before the test.
+  If the game is already running and this flag is used, the tool aborts.
+
+--no-backup
+  Write only the state manifest; do not copy mod files to a backup folder.
+
+--backup-dir <folder>
+  Folder used for backups.
+  Default: a backup folder next to the CLI executable.
+
+--backup-max-file-mb <size>
+  Do not copy a single file into the backup when it is larger than this
+  size, in megabytes.
+  Default: 1500
+
+--backup-max-total-mb <size>
+  Stop copying backup files when the total backup reaches this size,
+  in megabytes.
+  Default: 10000
+
+--extra-args "<arguments>"
+  Extra arguments added when the game is launched.
+  Default: -windowed -nosplash
+
+  Example that keeps the game alive for only 3 seconds (useful only with a
+  test stub, not with the real game):
+
+    --extra-args "--life=3"
+
+----------------------------------------------------------------
+7. OUTPUT AND EXIT CODES
+----------------------------------------------------------------
+
+The console shows:
+
+  [status]     Current step, such as initializing or auto-detecting.
+  [progress]   How many mods have been resolved and the current file.
+  Result lines:  usable / unusable / error / conflict / skipped
+
+Exit codes:
+
+  0   Test finished normally.
+  1   A runtime error occurred (for example no mods found or no game found).
+  2   Invalid usage, such as missing confirmation for delete mode, or the
+      program was started without arguments.
+  130 The user stopped the test with Ctrl+C.
+
+----------------------------------------------------------------
+8. WHAT THE VERDICTS MEAN
+----------------------------------------------------------------
+
+usable    The game window appeared and stayed stable for the configured
+          observation time.
+
+unusable  The game crashed, showed an error dialog, produced a fatal log
+          message, or created a new crash report during the test.
+
+error     The test could not be completed correctly, for example the game
+          process could not start or the mod could not be copied.
+
+conflict  A file with the same name already exists in the mod folder and the
+          tool skipped it to avoid overwriting an existing file.
+
+skipped   The mod was not tested because testing was canceled or stopped.
+
+----------------------------------------------------------------
+9. FOLDER SOURCE TESTING FLOW
+----------------------------------------------------------------
+
+When --source is folder:
+
+  1. The tool finds non-system .pak files in the candidate folder.
+  2. It records the current mod folder state.
+  3. It copies one mod into the game mod folder.
+  4. It starts the game and observes it.
+  5. It closes the game and removes the file it copied.
+  6. It repeats this for every mod.
+  7. It writes reports and handles unusable mods according to
+     --disposition.
+
+The tool only removes files that it copied itself. Existing files and game
+system files are never overwritten or deleted.
+
+----------------------------------------------------------------
+10. INSTALLED SOURCE TESTING FLOW
+----------------------------------------------------------------
+
+When --source is installed:
+
+  1. The tool finds every non-system .pak mod already in the game mod
+     folder.
+  2. It creates a backup and a state manifest.
+  3. It moves all installed mods to a temporary area named
+     inplace_parked_* under the report folder. Mods are moved, not deleted.
+  4. It installs one mod back at a time and tests it.
+  5. After the test it restores usable mods to the game folder.
+  6. Unusable mods are handled according to --disposition.
+  7. If the test is interrupted, the tool tries to restore every mod from
+     the temporary area.
+
+----------------------------------------------------------------
+11. REPORTS AND FOLDERS
+----------------------------------------------------------------
+
+After a test, the report folder contains files such as:
+
+  mod_compat_report_<timestamp>.csv
+  mod_compat_report_<timestamp>.json
+  quarantine\                  (when quarantine is used)
+  backup\                      (backup and manifest.json)
+  logs\                        (game logs)
+
+The CSV and JSON files list every tested mod, its verdict, elapsed time, the
+reason, and the log excerpt.
+
+----------------------------------------------------------------
+12. COMMON PROBLEMS
+----------------------------------------------------------------
+
+Problem: I double-clicked the CLI EXE and the window closed.
+Solution: This is a console program. Open PowerShell or CMD and run it with
+arguments, as shown in section 4 and section 5.
+
+Problem: The tool says the game folder or executable cannot be found.
+Solution: Use --game and --exe to provide the correct paths.
+
+Problem: Steam is not detected.
+Solution: Make sure Steam is running and logged in, then try again.
+
+Problem: The game never reaches the main menu.
+Solution: Increase --startup-timeout. If the game is slow on your computer,
+also increase --stable.
+
+Problem: I want to be sure a mod is good.
+Solution: Use --mode strict and a longer --stable value.
+
+Problem: The tool says delete mode is rejected.
+Solution: Delete mode requires --yes-delete:
+
+  --disposition delete --yes-delete
+
+Problem: The test takes a long time.
+Solution: Test fewer files, use --files for only the suspicious mods, and
+run large batches in separate sessions.
+
+----------------------------------------------------------------
+13. DISCLAIMER AND LICENSE
+----------------------------------------------------------------
+
+This tool launches the game repeatedly and may move, rename, or delete mod
+files according to your settings. Back up your saves and mods first.
+
+The automated result only checks the startup / main-menu stage. It does not
+prove that a mod works correctly inside every mission.
+
+License: PolyForm Noncommercial 1.0.0
+Free for personal and hobby use. No commercial use.

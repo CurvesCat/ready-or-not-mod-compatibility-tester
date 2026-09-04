@@ -100,6 +100,7 @@ class App:
         self.last_summary: dict | None = None
         self._row_index = 0
 
+        self._apply_theme()
         self._build_ui()
         self._load_config()
         self._auto_detect(quiet=True)
@@ -107,6 +108,134 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     # ------------------------------------------------------------------ UI
+    def _apply_theme(self) -> None:
+        bg = "#F5F5F7"
+        card = "#FFFFFF"
+        text = "#1D1D1F"
+        subtext = "#6E6E73"
+        accent = "#0071E3"
+        accent_hover = "#0077ED"
+        border = "#E5E5EA"
+
+        self.root.configure(bg=bg)
+        style = ttk.Style(self.root)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+
+        style.configure(
+            ".",
+            font=("Segoe UI", 10),
+            background=bg,
+            foreground=text,
+        )
+        style.configure("TFrame", background=bg)
+        style.configure("TLabel", background=bg, foreground=text)
+        style.configure(
+            "Title.TLabel",
+            background=bg,
+            foreground=text,
+            font=("Segoe UI", 17, "bold"),
+        )
+        style.configure(
+            "Sub.TLabel",
+            background=bg,
+            foreground=subtext,
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "TLabelframe",
+            background=bg,
+            bordercolor=border,
+            relief="flat",
+        )
+        style.configure(
+            "TLabelframe.Label",
+            background=bg,
+            foreground=text,
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.configure(
+            "TButton",
+            background="#FFFFFF",
+            foreground=text,
+            bordercolor=border,
+            lightcolor="#FFFFFF",
+            darkcolor=border,
+            focusthickness=0,
+            padding=(14, 7),
+        )
+        style.map(
+            "TButton",
+            background=[("active", "#F2F2F7"), ("disabled", "#F2F2F7")],
+            foreground=[("disabled", "#AEAEB2")],
+        )
+        style.configure(
+            "Accent.TButton",
+            background=accent,
+            foreground="#FFFFFF",
+            bordercolor=accent,
+            lightcolor=accent,
+            darkcolor=accent,
+            focusthickness=0,
+            padding=(18, 8),
+        )
+        style.map(
+            "Accent.TButton",
+            background=[("active", accent_hover), ("disabled", "#A9C7E8")],
+        )
+        style.configure(
+            "TEntry",
+            fieldbackground="#FFFFFF",
+            foreground=text,
+            bordercolor=border,
+            lightcolor=border,
+            darkcolor=border,
+            padding=6,
+        )
+        style.configure(
+            "TCombobox",
+            fieldbackground="#FFFFFF",
+            background="#FFFFFF",
+            foreground=text,
+            bordercolor=border,
+            padding=6,
+        )
+        style.configure(
+            "TSpinbox",
+            fieldbackground="#FFFFFF",
+            foreground=text,
+            bordercolor=border,
+            padding=6,
+        )
+        style.configure("TCheckbutton", background=bg, foreground=text)
+        style.map("TCheckbutton", background=[("active", bg)])
+        style.configure(
+            "Horizontal.TProgressbar",
+            troughcolor=border,
+            background=accent,
+            bordercolor=accent,
+            lightcolor=accent,
+            darkcolor=accent,
+        )
+        style.configure(
+            "Treeview",
+            background="#FFFFFF",
+            fieldbackground="#FFFFFF",
+            foreground=text,
+            rowheight=27,
+            bordercolor=border,
+        )
+        style.configure(
+            "Treeview.Heading",
+            background="#F5F5F7",
+            foreground=subtext,
+            relief="flat",
+            font=("Segoe UI", 9, "bold"),
+        )
+        style.map("Treeview", background=[("selected", accent)])
+
     def _build_ui(self) -> None:
         if hasattr(self, "main"):
             self.main.destroy()
@@ -121,7 +250,7 @@ class App:
         ttk.Label(
             top_bar,
             text=f"{t('app_title')} v{VERSION}",
-            font=("Segoe UI", 13, "bold"),
+            style="Title.TLabel",
         ).pack(side=LEFT)
         self.btn_language = ttk.Button(
             top_bar, text=t("language"), command=self._choose_language
@@ -136,6 +265,7 @@ class App:
             text=t("app_desc"),
             wraplength=1000,
             justify=LEFT,
+            style="Sub.TLabel",
         ).pack(anchor="w", pady=(0, 8))
 
         cfg = ttk.LabelFrame(main, text=t("path_config"), padding=6)
@@ -242,7 +372,9 @@ class App:
 
         btns = ttk.Frame(main)
         btns.pack(fill=X, pady=8)
-        self.btn_start = ttk.Button(btns, text=t("start_test"), command=self._start)
+        self.btn_start = ttk.Button(
+            btns, text=t("start_test"), command=self._start, style="Accent.TButton"
+        )
         self.btn_start.pack(side=LEFT)
         self.btn_stop = ttk.Button(
             btns, text=t("stop"), command=self._stop, state="disabled"
@@ -305,7 +437,9 @@ class App:
             log_frame, height=8, state="disabled", wrap="word"
         )
         self.log_text.pack(fill=BOTH, expand=True)
-        ttk.Label(main, text=f"{t('author')}: {AUTHOR}", foreground="#777777").pack(
+        ttk.Label(
+            main, text=f"{t('author')}: {AUTHOR}", style="Sub.TLabel"
+        ).pack(
             anchor="e", pady=(4, 0)
         )
 

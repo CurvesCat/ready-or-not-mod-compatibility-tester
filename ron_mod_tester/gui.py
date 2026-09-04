@@ -381,7 +381,8 @@ class App:
             _sync_scroll_region()
 
         def _on_wheel(event) -> str:
-            self._scroll_canvas.yview_scroll(int(-event.delta / 120), "units")
+            steps = max(1, int(-event.delta / 120) * 4)
+            self._scroll_canvas.yview_scroll(steps, "units")
             self._scroll_vsb.configure(style="Slim.Vertical.TScrollbar")
             job = getattr(self._scroll_vsb, "_hide_after", None)
             if job is not None:
@@ -619,6 +620,34 @@ class App:
                 _bind_page_scroll(child)
 
         _bind_page_scroll(main)
+
+        self._inner_focus = None
+
+        def _deactivate_inner(event) -> None:
+            if event.widget in (self.tree, self.log_text):
+                return
+            self._inner_focus = None
+
+        def _activate_tree(_event) -> None:
+            self._inner_focus = self.tree
+
+        def _activate_log(_event) -> None:
+            self._inner_focus = self.log_text
+
+        def _inner_wheel(event, widget):
+            if self._inner_focus is widget:
+                return None
+            return _on_wheel(event)
+
+        self.root.bind_all("<Button-1>", _deactivate_inner, add="+")
+        self.tree.bind("<Button-1>", _activate_tree)
+        self.log_text.bind("<Button-1>", _activate_log)
+        self.tree.bind(
+            "<MouseWheel>", lambda e: _inner_wheel(e, self.tree), add="+"
+        )
+        self.log_text.bind(
+            "<MouseWheel>", lambda e: _inner_wheel(e, self.log_text), add="+"
+        )
 
         self._install_autohide(self._scroll_vsb, self._scroll_canvas)
         self._install_autohide(tree_scroll, self.tree)

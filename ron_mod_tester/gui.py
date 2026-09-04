@@ -164,7 +164,8 @@ class App:
             lightcolor="#FFFFFF",
             darkcolor=border,
             focusthickness=0,
-            padding=(14, 7),
+            relief="flat",
+            padding=(16, 8),
         )
         style.map(
             "TButton",
@@ -179,7 +180,8 @@ class App:
             lightcolor=accent,
             darkcolor=accent,
             focusthickness=0,
-            padding=(18, 8),
+            relief="flat",
+            padding=(18, 9),
         )
         style.map(
             "Accent.TButton",
@@ -193,6 +195,7 @@ class App:
             lightcolor=border,
             darkcolor=border,
             padding=6,
+            relief="flat",
         )
         style.configure(
             "TCombobox",
@@ -201,6 +204,7 @@ class App:
             foreground=text,
             bordercolor=border,
             padding=6,
+            relief="flat",
         )
         style.configure(
             "TSpinbox",
@@ -208,6 +212,7 @@ class App:
             foreground=text,
             bordercolor=border,
             padding=6,
+            relief="flat",
         )
         style.configure("TCheckbutton", background=bg, foreground=text)
         style.map("TCheckbutton", background=[("active", bg)])

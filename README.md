@@ -2,6 +2,8 @@
 
 **Author:** CurvesCat
 
+**Nexus Mods:** <https://www.nexusmods.com/readyornot/mods/8575>
+
 A Windows desktop tool that automatically tests whether each `.pak` mod still
 works after a *Ready or Not* game update. It launches the game once per mod,
 watches the game window and process, and produces CSV / JSON reports while
@@ -111,6 +113,8 @@ risk. The automated result is only a startup-stage smoke test.
 
 作者：CurvesCat
 
+N 网页面：https://www.nexusmods.com/readyornot/mods/8575
+
 这是一个 Windows 桌面工具，用于在《严阵以待》更新后自动逐个检测 `.pak` Mod
 是否仍然可用。它会逐个把 Mod 放进游戏目录、启动游戏并观察窗口/进程是否稳定，
 输出 CSV / JSON 报告，并可把不可用 Mod 隔离、禁用或删除。
@@ -122,4 +126,3 @@ risk. The automated result is only a startup-stage smoke test.
 自动测时、点击跳过开场动画、备份与一键还原、中英文界面等。
 
 请自行备份存档和 Mod，使用风险自负。
-

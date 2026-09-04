@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 from tkinter import (
     BOTH,
+    Checkbutton,
     END,
     HORIZONTAL,
     LEFT,
@@ -241,6 +242,23 @@ class App:
         )
         style.map("Treeview", background=[("selected", accent)])
 
+    def _check(self, parent, text, variable):
+        return Checkbutton(
+            parent,
+            text=text,
+            variable=variable,
+            bg="#F5F5F7",
+            activebackground="#F5F5F7",
+            selectcolor="#FFFFFF",
+            fg="#0071E3",
+            activeforeground="#0071E3",
+            font=("Segoe UI", 10),
+            bd=0,
+            highlightthickness=0,
+            cursor="hand2",
+            anchor="w",
+        )
+
     def _build_ui(self) -> None:
         if hasattr(self, "main"):
             self.main.destroy()
@@ -361,16 +379,16 @@ class App:
             width=18,
         )
         self.disposition_combo.grid(row=3, column=1, columnspan=2, sticky="w", **pad)
-        ttk.Checkbutton(
-            opt, text=t("warmup"), variable=self.var_warmup
-        ).grid(row=3, column=3, columnspan=3, sticky="w", **pad)
+        self._check(opt, t("warmup"), self.var_warmup).grid(
+            row=3, column=3, columnspan=3, sticky="w", **pad
+        )
 
-        ttk.Checkbutton(
-            opt, text=t("close_running"), variable=self.var_close_running
-        ).grid(row=4, column=0, columnspan=3, sticky="w", **pad)
-        ttk.Checkbutton(
-            opt, text=t("backup_mods"), variable=self.var_backup
-        ).grid(row=4, column=3, columnspan=3, sticky="w", **pad)
+        self._check(opt, t("close_running"), self.var_close_running).grid(
+            row=4, column=0, columnspan=3, sticky="w", **pad
+        )
+        self._check(opt, t("backup_mods"), self.var_backup).grid(
+            row=4, column=3, columnspan=3, sticky="w", **pad
+        )
         ttk.Button(opt, text=t("backup_settings"), command=self._open_backup_settings).grid(
             row=5, column=0, sticky="w", **pad
         )

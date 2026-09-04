@@ -71,6 +71,8 @@ ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated
 ReadyOrNot-ModCompatTester-cli.exe --source installed --mode strict
 ```
 
+Detailed command-line usage: [CLI_USAGE.txt](CLI_USAGE.txt)
+
 Common options:
 
 | Option | Description | Default |

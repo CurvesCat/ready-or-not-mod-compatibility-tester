@@ -79,6 +79,7 @@ Common options:
 | `--source` | `folder` / `installed` | `folder` |
 | `--mode` | `isolated` / `strict` | `isolated` |
 | `--disposition` | `quarantine` / `disable` / `delete` / `record` | `quarantine` |
+| `--yes-delete` | Confirm `--disposition delete` (required, otherwise rejected) | off |
 | `--game` | Game root folder | auto-detect |
 | `--exe` | Game executable | auto-detect |
 | `--mod-dir` | Mod install folder | auto-detect |

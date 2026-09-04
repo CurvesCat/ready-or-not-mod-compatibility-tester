@@ -272,16 +272,6 @@ class App:
             darkcolor="#C7C7CC",
             arrowsize=0,
         )
-        style.layout("Hidden.Vertical.TScrollbar", slim_layout)
-        style.configure(
-            "Hidden.Vertical.TScrollbar",
-            troughcolor="#F5F5F7",
-            background="#F5F5F7",
-            bordercolor="#F5F5F7",
-            lightcolor="#F5F5F7",
-            darkcolor="#F5F5F7",
-            arrowsize=0,
-        )
 
     def _check(self, parent, text, variable):
         return Checkbutton(
@@ -299,44 +289,6 @@ class App:
             cursor="hand2",
             anchor="w",
         )
-
-    def _install_autohide(
-        self, bar: ttk.Scrollbar, hover_widget
-    ) -> None:
-        def show(_event=None) -> None:
-            bar.configure(style="Slim.Vertical.TScrollbar")
-            job = getattr(bar, "_hide_after", None)
-            if job is not None:
-                try:
-                    self.root.after_cancel(job)
-                except Exception:
-                    pass
-            bar._hide_after = self.root.after(
-                1400,
-                lambda: bar.configure(style="Hidden.Vertical.TScrollbar"),
-            )
-
-        def hide(_event=None) -> None:
-            bar.configure(style="Hidden.Vertical.TScrollbar")
-
-        def on_motion(event) -> None:
-            try:
-                near_right = event.x >= hover_widget.winfo_width() - 70
-            except Exception:
-                near_right = True
-            if near_right:
-                show(event)
-            else:
-                show(event)
-
-        bar.configure(style="Hidden.Vertical.TScrollbar")
-        bar.bind("<Enter>", show)
-        bar.bind("<Leave>", hide)
-        hover_widget.bind("<Motion>", on_motion)
-        try:
-            hover_widget.bind("<MouseWheel>", show, add="+")
-        except Exception:
-            pass
 
     def _build_ui(self) -> None:
         if hasattr(self, "_scroll_canvas"):
@@ -356,6 +308,7 @@ class App:
         )
         self._scroll_vsb.configure(command=self._scroll_canvas.yview)
         self._scroll_canvas.configure(yscrollcommand=self._scroll_vsb.set)
+        self._scroll_vsb.configure(style="Slim.Vertical.TScrollbar")
         self._scroll_vsb.pack(side=RIGHT, fill=Y)
         self._scroll_canvas.pack(side=LEFT, fill=BOTH, expand=True)
 
@@ -383,19 +336,6 @@ class App:
         def _on_wheel(event) -> str:
             steps = max(1, int(-event.delta / 120) * 4)
             self._scroll_canvas.yview_scroll(steps, "units")
-            self._scroll_vsb.configure(style="Slim.Vertical.TScrollbar")
-            job = getattr(self._scroll_vsb, "_hide_after", None)
-            if job is not None:
-                try:
-                    self.root.after_cancel(job)
-                except Exception:
-                    pass
-            self._scroll_vsb._hide_after = self.root.after(
-                1400,
-                lambda: self._scroll_vsb.configure(
-                    style="Hidden.Vertical.TScrollbar"
-                ),
-            )
             return "break"
 
         main.bind("<Configure>", _sync_scroll_region)
@@ -589,7 +529,12 @@ class App:
         for col in columns:
             self.tree.heading(col, text=headings[col])
             self.tree.column(col, width=widths[col], anchor="w", stretch=col == "reason")
-        tree_scroll = ttk.Scrollbar(results_frame, orient="vertical", command=self.tree.yview)
+        tree_scroll = ttk.Scrollbar(
+            results_frame,
+            orient="vertical",
+            command=self.tree.yview,
+            style="Slim.Vertical.TScrollbar",
+        )
         self.tree.configure(yscrollcommand=tree_scroll.set)
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
         tree_scroll.pack(side=RIGHT, fill=Y)
@@ -610,47 +555,11 @@ class App:
         )
 
         def _bind_page_scroll(target) -> None:
-            if isinstance(target, scrolledtext.ScrolledText):
-                return
-            cls = target.winfo_class()
-            if cls in ("Treeview", "Listbox"):
-                return
             target.bind("<MouseWheel>", _on_wheel)
             for child in target.winfo_children():
                 _bind_page_scroll(child)
 
         _bind_page_scroll(main)
-
-        self._inner_focus = None
-
-        def _deactivate_inner(event) -> None:
-            if event.widget in (self.tree, self.log_text):
-                return
-            self._inner_focus = None
-
-        def _activate_tree(_event) -> None:
-            self._inner_focus = self.tree
-
-        def _activate_log(_event) -> None:
-            self._inner_focus = self.log_text
-
-        def _inner_wheel(event, widget):
-            if self._inner_focus is widget:
-                return None
-            return _on_wheel(event)
-
-        self.root.bind_all("<Button-1>", _deactivate_inner, add="+")
-        self.tree.bind("<Button-1>", _activate_tree)
-        self.log_text.bind("<Button-1>", _activate_log)
-        self.tree.bind(
-            "<MouseWheel>", lambda e: _inner_wheel(e, self.tree), add="+"
-        )
-        self.log_text.bind(
-            "<MouseWheel>", lambda e: _inner_wheel(e, self.log_text), add="+"
-        )
-
-        self._install_autohide(self._scroll_vsb, self._scroll_canvas)
-        self._install_autohide(tree_scroll, self.tree)
 
     def _path_row(
         self,

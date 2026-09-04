@@ -14,7 +14,6 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
 
 from tkinter import (
     BOTH,
-    Canvas,
     Checkbutton,
     END,
     HORIZONTAL,
@@ -77,8 +76,15 @@ class App:
     def __init__(self, root: Tk) -> None:
         self.root = root
         root.title(f"{t('app_title')} v{VERSION} - by {AUTHOR}")
-        root.geometry("1180x820")
-        root.minsize(860, 520)
+        try:
+            screen_w = root.winfo_screenwidth()
+            screen_h = root.winfo_screenheight()
+        except Exception:
+            screen_w, screen_h = 1280, 720
+        width = max(1000, min(1220, screen_w - 40))
+        height = max(680, min(900, screen_h - 70))
+        root.geometry(f"{width}x{height}")
+        root.minsize(min(960, width), min(600, height))
 
         self.var_mod_folder = StringVar()
         self.var_game_root = StringVar()
@@ -446,40 +452,8 @@ class App:
         self.status_var = StringVar(value=t("ready_status"))
         ttk.Label(main, textvariable=self.status_var).pack(anchor="w")
 
-        scroll_area = Canvas(main, bg="#F5F5F7", highlightthickness=0)
-        scroll_vsb = ttk.Scrollbar(
-            main, orient="vertical", command=scroll_area.yview
-        )
-        scroll_area.configure(yscrollcommand=scroll_vsb.set)
-        scroll_vsb.pack(side=RIGHT, fill=Y)
-        scroll_area.pack(side=LEFT, fill=BOTH, expand=True, pady=(8, 0))
-
-        scroll_inner = ttk.Frame(scroll_area)
-        _scroll_window = scroll_area.create_window(
-            (0, 0), window=scroll_inner, anchor="nw"
-        )
-
-        def _sync_scroll_region(_event=None) -> None:
-            scroll_area.configure(scrollregion=scroll_area.bbox("all"))
-
-        def _sync_scroll_size(event) -> None:
-            bbox = scroll_area.bbox("all")
-            natural = bbox[3] if bbox else event.height
-            scroll_area.itemconfigure(
-                _scroll_window, width=event.width, height=max(event.height, natural)
-            )
-            _sync_scroll_region()
-
-        def _on_wheel(event) -> None:
-            scroll_area.yview_scroll(int(-event.delta / 120), "units")
-
-        scroll_inner.bind("<Configure>", _sync_scroll_region)
-        scroll_area.bind("<Configure>", _sync_scroll_size)
-        scroll_area.bind("<MouseWheel>", _on_wheel)
-        scroll_inner.bind("<MouseWheel>", _on_wheel)
-
-        results_frame = ttk.LabelFrame(scroll_inner, text=t("results"), padding=4)
-        results_frame.pack(fill=BOTH, expand=True, pady=(0, 8))
+        results_frame = ttk.LabelFrame(main, text=t("results"), padding=4)
+        results_frame.pack(fill=BOTH, expand=True, pady=(8, 0))
         columns = ("index", "filename", "verdict", "elapsed", "reason")
         self.tree = ttk.Treeview(
             results_frame, columns=columns, show="headings", height=8
@@ -503,8 +477,8 @@ class App:
         self.tree.tag_configure("fail", foreground="#c62828")
         self.tree.tag_configure("warn", foreground="#b26a00")
 
-        log_frame = ttk.LabelFrame(scroll_inner, text=t("run_log"), padding=4)
-        log_frame.pack(fill=BOTH, expand=True)
+        log_frame = ttk.LabelFrame(main, text=t("run_log"), padding=4)
+        log_frame.pack(fill=BOTH, expand=True, pady=(8, 0))
         self.log_text = scrolledtext.ScrolledText(
             log_frame, height=8, state="disabled", wrap="word"
         )
@@ -1361,6 +1335,13 @@ def main() -> int:
     setup_logging()
     install_excepthook()
     get_logger().info("Application starting")
+
+    try:
+        import ctypes
+
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
 
     root = Tk()
     if getattr(sys, "frozen", False):

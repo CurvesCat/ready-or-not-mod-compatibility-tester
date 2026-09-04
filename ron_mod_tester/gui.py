@@ -283,7 +283,7 @@ class App:
             style="Title.TLabel",
         ).pack(side=LEFT)
         self.btn_language = ttk.Button(
-            top_bar, text=t("language"), command=self._choose_language
+            top_bar, text="Language", command=self._choose_language
         )
         self.btn_language.pack(side=LEFT, padx=(12, 0))
         self.btn_tutorial = ttk.Button(

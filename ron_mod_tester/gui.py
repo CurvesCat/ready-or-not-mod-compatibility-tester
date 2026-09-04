@@ -29,7 +29,7 @@ from tkinter import (
 from . import APP_NAME, AUTHOR, VERSION, default_backup_dir
 from .calibrate import calibrate
 from .i18n import t, set_language, get_language
-from .log import get_logger, install_excepthook, setup_logging, LOG_FILE
+from .log import audit, get_logger, install_excepthook, setup_logging, LOG_FILE
 from .locate import detect_game, detect_mod_dir
 from .models import AppConfig, TestResult
 from .proc import find_game_processes, graceful_close
@@ -489,6 +489,7 @@ class App:
 
     # -------------------------------------------------------------- actions
     def _browse_mod_folder(self) -> None:
+        audit("browse_mod_folder")
         path = filedialog.askdirectory(title=t("选择包含 .pak Mod 文件的文件夹"))
         if path:
             self.var_mod_folder.set(path)
@@ -498,12 +499,14 @@ class App:
                 )
 
     def _browse_game_root(self) -> None:
+        audit("browse_game_root")
         path = filedialog.askdirectory(title=t("选择游戏根目录（包含 ReadyOrNot 文件夹）"))
         if path:
             self.var_game_root.set(path)
             self._auto_detect(quiet=True)
 
     def _browse_exe(self) -> None:
+        audit("browse_exe")
         path = filedialog.askopenfilename(
             title=t("选择游戏可执行文件"),
             filetypes=[(t("可执行文件"), "*.exe"), (t("所有文件"), "*.*")],
@@ -512,16 +515,19 @@ class App:
             self.var_exe.set(path)
 
     def _browse_mod_dir(self) -> None:
+        audit("browse_mod_dir")
         path = filedialog.askdirectory(title=t("选择 Mod 安装目录（Paks 或 ~mods）"))
         if path:
             self.var_mod_dir.set(path)
 
     def _browse_report_dir(self) -> None:
+        audit("browse_report_dir")
         path = filedialog.askdirectory(title=t("选择报告输出目录"))
         if path:
             self.var_report_dir.set(path)
 
     def _add_mod_files(self) -> None:
+        audit("add_mod_files")
         files = filedialog.askopenfilenames(
             title=t("选择要测试的 .pak 文件"),
             filetypes=[(t("Pak 文件"), "*.pak"), (t("所有文件"), "*.*")],
@@ -533,6 +539,7 @@ class App:
         self._update_selection_label()
 
     def _add_exclude_files(self) -> None:
+        audit("add_exclude_files")
         files = filedialog.askopenfilenames(
             title=t("选择要排除的文件"),
             filetypes=[(t("Pak 文件"), "*.pak"), (t("所有文件"), "*.*")],
@@ -544,6 +551,7 @@ class App:
         self._update_selection_label()
 
     def _clear_selection(self) -> None:
+        audit("clear_selection")
         self.mod_files.clear()
         self.exclude_files.clear()
         self._update_selection_label()
@@ -558,6 +566,7 @@ class App:
         )
 
     def _auto_detect(self, quiet: bool = False) -> None:
+        audit("auto_detect")
         try:
             info = detect_game(Path(self.var_game_root.get()) if self.var_game_root.get() else None)
         except Exception as exc:  # pragma: no cover - defensive
@@ -589,6 +598,7 @@ class App:
         self.log_text.configure(state="disabled")
 
     def _start(self) -> None:
+        audit("start_test")
         source = _key_for_label(_source_labels(), self.var_source.get(), "folder")
         disposition = _key_for_label(
             _disposition_labels(), self.var_disposition.get(), "quarantine"
@@ -669,11 +679,13 @@ class App:
             self.event_queue.put(("error", str(exc)))
 
     def _stop(self) -> None:
+        audit("stop")
         self.cancel_event.set()
         self.status_var.set(t("正在停止，请等待当前测试收尾…"))
         self.btn_stop.configure(state="disabled")
 
     def _calibrate(self) -> None:
+        audit("auto_timing")
         exe = self._resolve_exe_path()
         if exe is None or not exe.is_file():
             messagebox.showwarning(t("未找到游戏"), t("请先自动检测或手动选择游戏可执行文件。"))
@@ -875,6 +887,7 @@ class App:
             self.root.destroy()
 
     def _open_report(self) -> None:
+        audit("open_report")
         if self.last_summary and self.last_summary.get("csv_path"):
             os.startfile(str(Path(self.last_summary["csv_path"]).parent))  # type: ignore[attr-defined]
         elif self.var_report_dir.get().strip():
@@ -882,6 +895,7 @@ class App:
             os.startfile(self.var_report_dir.get())  # type: ignore[attr-defined]
 
     def _open_tutorial(self) -> None:
+        audit("open_tutorial")
         top = Toplevel(self.root)
         top.title(
             "Detailed Tutorial - RoN Mod Compatibility Tester"
@@ -903,6 +917,7 @@ class App:
         top.grab_set()
 
     def _choose_language(self) -> None:
+        audit("choose_language")
         win = Toplevel(self.root)
         win.title(t("language"))
         win.geometry("260x140")
@@ -948,6 +963,7 @@ class App:
             pass
 
     def _open_quarantine(self) -> None:
+        audit("open_quarantine")
         path = self.last_summary.get("quarantine_dir") if self.last_summary else None
         if path and Path(path).is_dir():
             os.startfile(str(path))  # type: ignore[attr-defined]
@@ -955,6 +971,7 @@ class App:
             messagebox.showinfo(t("隔离目录"), t("本次测试没有生成隔离目录或不可用 Mod。"))
 
     def _restore_backup(self) -> None:
+        audit("restore_backup")
         backup_dir = self._backup_dir()
         if backup_dir is None:
             messagebox.showwarning("未找到备份目录", "请先在“备份设置”里选择备份目录。")
@@ -1015,6 +1032,7 @@ class App:
         return default_backup_dir()
 
     def _open_backup_folder(self) -> None:
+        audit("open_backup_folder")
         backup_dir = self._backup_dir()
         if backup_dir and backup_dir.is_dir():
             os.startfile(str(backup_dir))  # type: ignore[attr-defined]
@@ -1022,12 +1040,14 @@ class App:
             messagebox.showinfo(t("备份目录"), t("还没有生成备份目录。"))
 
     def _open_log(self) -> None:
+        audit("open_log")
         if LOG_FILE.is_file():
             os.startfile(str(LOG_FILE))  # type: ignore[attr-defined]
         else:
             messagebox.showinfo(t("open_log"), f"{LOG_FILE}")
 
     def _open_backup_settings(self) -> None:
+        audit("open_backup_settings")
         old_dir = self.var_backup_dir.get()
         old_max_file = self.var_backup_max_file.get()
         old_max_total = self.var_backup_max_total.get()

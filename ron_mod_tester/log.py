@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 import threading
@@ -16,7 +17,12 @@ def setup_logging() -> None:
     logger = logging.getLogger("ron_mct")
     logger.setLevel(logging.DEBUG)
     if not logger.handlers:
-        handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+        handler = RotatingFileHandler(
+            LOG_FILE,
+            maxBytes=1_000_000,  # ~1 MB per file
+            backupCount=3,       # keep 3 rotated files, then delete oldest
+            encoding="utf-8",
+        )
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -26,6 +32,11 @@ def setup_logging() -> None:
 
 def get_logger() -> logging.Logger:
     return logging.getLogger("ron_mct")
+
+
+def audit(action: str) -> None:
+    """Record a user action in the log."""
+    get_logger().info("USER_ACTION: %s", action)
 
 
 def install_excepthook() -> None:
@@ -43,4 +54,3 @@ def install_excepthook() -> None:
 
     sys.excepthook = _handle_exception
     threading.excepthook = _handle_thread_exception
-

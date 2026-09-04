@@ -927,12 +927,12 @@ class App:
         top.transient(self.root)
         top.grab_set()
 
-    def _avatar_path(self) -> Path | None:
+    def _logo_path(self) -> Path | None:
         candidates: list[Path] = []
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            candidates.append(Path(sys._MEIPASS) / "assets" / "avatar.png")
-        candidates.append(Path(__file__).resolve().parent.parent / "assets" / "avatar.png")
-        candidates.append(Path.cwd() / "assets" / "avatar.png")
+            candidates.append(Path(sys._MEIPASS) / "assets" / "logo.png")
+        candidates.append(Path(__file__).resolve().parent.parent / "assets" / "logo.png")
+        candidates.append(Path.cwd() / "assets" / "logo.png")
         for candidate in candidates:
             if candidate.is_file():
                 return candidate
@@ -950,16 +950,16 @@ class App:
         main_about = ttk.Frame(top, padding=16)
         main_about.pack(fill=BOTH, expand=True)
 
-        avatar_path = self._avatar_path()
-        avatar_image = None
-        if avatar_path is not None:
+        logo_path = self._logo_path()
+        logo_image = None
+        if logo_path is not None:
             try:
-                avatar_image = PhotoImage(file=str(avatar_path))
+                logo_image = PhotoImage(file=str(logo_path))
             except Exception:
-                avatar_image = None
-        if avatar_image is not None:
-            top.avatar_image = avatar_image  # keep reference alive
-            ttk.Label(main_about, image=avatar_image).pack(pady=(0, 8))
+                logo_image = None
+        if logo_image is not None:
+            top.logo_image = logo_image  # keep reference alive
+            ttk.Label(main_about, image=logo_image).pack(pady=(0, 8))
 
         ttk.Label(
             main_about,

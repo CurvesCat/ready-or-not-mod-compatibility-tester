@@ -4,6 +4,13 @@
 
 **Nexus Mods:** <https://www.nexusmods.com/readyornot/mods/8575>
 
+## Download
+
+**One file, everything inside (GUI + CLI + docs + license):**
+[Download ReadyOrNot-ModCompatTester_v0.1.5.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.1.5/ReadyOrNot-ModCompatTester_v0.1.5.zip)
+
+Other releases: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
+
 A Windows desktop tool that automatically tests whether each `.pak` mod still
 works after a *Ready or Not* game update. It launches the game once per mod,
 watches the game window and process, and produces CSV / JSON reports while

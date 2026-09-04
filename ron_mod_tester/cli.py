@@ -112,6 +112,36 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _is_interactive() -> bool:
+    try:
+        return bool(sys.stdin and sys.stdin.isatty())
+    except Exception:  # noqa: BLE001 - cosmetic only
+        return False
+
+
+def _show_launcher_hint() -> None:
+    print("这是命令行（CLI）版本，不适合直接双击使用。", flush=True)
+    print("This is the command-line version; do not run it by double-clicking.", flush=True)
+    print(flush=True)
+    print("请在 PowerShell 或 CMD 中运行，例如：", flush=True)
+    print("Run it from PowerShell or CMD, for example:", flush=True)
+    print('  ReadyOrNot-ModCompatTester-cli.exe --mods "D:\\Mods\\RoN" --mode isolated', flush=True)
+    print(flush=True)
+    print("不带任何参数输入时没有可执行内容，所以程序会退出。", flush=True)
+    print("Without arguments there is nothing to run, so the program exits.", flush=True)
+
+
+def _wait_for_enter_if_interactive() -> None:
+    if not _is_interactive():
+        return
+    try:
+        print(flush=True)
+        print("按 Enter 键关闭窗口…  Press Enter to close this window.", flush=True)
+        sys.stdin.readline()
+    except Exception:  # noqa: BLE001 - cosmetic only
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -126,7 +156,13 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BLE001 - cosmetic only
         pass
 
-    args = _build_parser().parse_args(argv)
+    argv_list = list(sys.argv[1:]) if argv is None else list(argv)
+    if not argv_list:
+        _show_launcher_hint()
+        _wait_for_enter_if_interactive()
+        return 2
+
+    args = _build_parser().parse_args(argv_list)
     if args.disposition == "delete" and not args.yes_delete:
         print(
             "安全限制：--disposition delete 会永久删除文件，需要额外加 --yes-delete 确认。",

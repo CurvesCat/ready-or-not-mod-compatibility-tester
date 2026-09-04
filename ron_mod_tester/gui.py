@@ -29,6 +29,7 @@ from tkinter import (
 from . import APP_NAME, AUTHOR, VERSION, default_backup_dir
 from .calibrate import calibrate
 from .i18n import t, set_language, get_language
+from .log import get_logger, install_excepthook, setup_logging, LOG_FILE
 from .locate import detect_game, detect_mod_dir
 from .models import AppConfig, TestResult
 from .proc import find_game_processes, graceful_close
@@ -68,8 +69,8 @@ class App:
     def __init__(self, root: Tk) -> None:
         self.root = root
         root.title(f"{t('app_title')} v{VERSION} - by {AUTHOR}")
-        root.geometry("1040x760")
-        root.minsize(860, 620)
+        root.geometry("1180x820")
+        root.minsize(960, 680)
 
         self.var_mod_folder = StringVar()
         self.var_game_root = StringVar()
@@ -423,6 +424,10 @@ class App:
             btns, text=t("open_backup"), command=self._open_backup_folder
         )
         self.btn_backup_folder.pack(side=LEFT, padx=(6, 0))
+        self.btn_log = ttk.Button(
+            btns, text=t("open_log"), command=self._open_log
+        )
+        self.btn_log.pack(side=LEFT, padx=(6, 0))
 
         self.progress = ttk.Progressbar(main, mode="determinate")
         self.progress.pack(fill=X, pady=(0, 4))
@@ -660,6 +665,7 @@ class App:
         try:
             runner.run()
         except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            get_logger().exception("Test runner failed")
             self.event_queue.put(("error", str(exc)))
 
     def _stop(self) -> None:
@@ -723,6 +729,7 @@ class App:
             else:
                 self.event_queue.put(("calibrated", result))
         except Exception as exc:  # noqa: BLE001
+            get_logger().exception("Auto timing failed")
             self.event_queue.put(("error", str(exc)))
 
     def _poll_queue(self) -> None:
@@ -1014,6 +1021,12 @@ class App:
         else:
             messagebox.showinfo(t("备份目录"), t("还没有生成备份目录。"))
 
+    def _open_log(self) -> None:
+        if LOG_FILE.is_file():
+            os.startfile(str(LOG_FILE))  # type: ignore[attr-defined]
+        else:
+            messagebox.showinfo(t("open_log"), f"{LOG_FILE}")
+
     def _open_backup_settings(self) -> None:
         old_dir = self.var_backup_dir.get()
         old_max_file = self.var_backup_max_file.get()
@@ -1177,6 +1190,10 @@ class App:
 
 
 def main() -> int:
+    setup_logging()
+    install_excepthook()
+    get_logger().info("Application starting")
+
     root = Tk()
     if getattr(sys, "frozen", False):
         try:

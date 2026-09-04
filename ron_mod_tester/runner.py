@@ -35,6 +35,8 @@ def _ensure_dir(path: Path) -> Path:
 
 
 def _unique_destination(directory: Path, filename: str) -> Path:
+    if not filename or "/" in filename or "\\" in filename or ".." in filename:
+        raise ValueError(f"不安全的文件名：{filename!r}")
     target = directory / filename
     if not target.exists():
         return target

@@ -100,6 +100,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "delete=删除，record=仅记录（默认 quarantine）",
     )
     parser.add_argument(
+        "--yes-delete",
+        action="store_true",
+        help="确认使用 --disposition delete（删除不可用源文件，不可恢复）",
+    )
+    parser.add_argument(
         "--extra-args",
         default="-windowed -nosplash",
         help='附加游戏启动参数（例如 "-windowed"）',
@@ -122,6 +127,12 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     args = _build_parser().parse_args(argv)
+    if args.disposition == "delete" and not args.yes_delete:
+        print(
+            "安全限制：--disposition delete 会永久删除文件，需要额外加 --yes-delete 确认。",
+            flush=True,
+        )
+        return 2
     print(
         "警告：本工具会启动游戏并可能改动 Mod 目录。请先备份重要存档与数据，使用风险自负。",
         flush=True,

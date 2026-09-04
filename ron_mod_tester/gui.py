@@ -334,7 +334,10 @@ class App:
             _sync_scroll_region()
 
         def _on_wheel(event) -> str:
-            steps = max(1, int(-event.delta / 120) * 4)
+            if event.delta == 0:
+                return "break"
+            clicks = max(1, abs(event.delta) // 120)
+            steps = -clicks * 4 if event.delta > 0 else clicks * 4
             self._scroll_canvas.yview_scroll(steps, "units")
             return "break"
 

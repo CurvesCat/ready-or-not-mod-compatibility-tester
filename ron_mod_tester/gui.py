@@ -72,49 +72,6 @@ def _key_for_label(table: dict, label: str, default: str) -> str:
     return default
 
 
-MIT_LICENSE_TEXT_EN = """\
-MIT License
-
-Copyright (c) 2026 CurvesCat
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-
-MIT_LICENSE_TEXT_ZH = """\
-MIT 许可证
-
-版权所有 (c) 2026 CurvesCat
-
-特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，允许其不受限制地
-处理本软件，包括但不限于使用、复制、修改、合并、发布、分发、再许可和/或销售本
-软件的副本，并允许向其提供本软件的人这样做，前提是遵守以下条件：
-
-上述版权声明和本许可声明应包含在本软件的所有副本或重要部分中。
-
-本软件按“原样”提供，不作任何明示或暗示的保证，包括但不限于适销性、特定用途适用
-性和非侵权性的保证。在任何情况下，作者或版权持有人均不对因本软件或使用本软件或
-与本软件有关的其他交易而产生或与之相关的任何索赔、损害赔偿或其他责任承担责任，
-无论是合同诉讼、侵权诉讼还是其他诉讼。
-"""
-
-
 class App:
     def __init__(self, root: Tk) -> None:
         self.root = root
@@ -1035,17 +992,44 @@ class App:
             state="normal",
         )
         license_text.pack(fill=BOTH, expand=True)
+        header = (
+            "PolyForm Noncommercial License 1.0.0\n"
+            "https://polyformproject.org/licenses/noncommercial/1.0.0\n"
+            "\n"
+            "This project is free for personal / hobby / non-commercial use.\n"
+            "Contributions are welcome on GitHub:\n"
+            + github
+        ) if get_language() == "en" else (
+            "PolyForm Noncommercial 许可证 1.0.0\n"
+            "https://polyformproject.org/licenses/noncommercial/1.0.0\n"
+            "\n"
+            "本项目允许爱好者免费使用、修改和修复 Bug，但不允许商业用途（拿它赚钱）。\n"
+            "欢迎到 GitHub 一起完善：\n"
+            + github
+        )
         license_text.insert(
             "1.0",
-            MIT_LICENSE_TEXT_EN
-            if get_language() == "en"
-            else MIT_LICENSE_TEXT_ZH,
+            header + "\n\n" + self._read_license_text(),
         )
         license_text.configure(state="disabled")
 
         ttk.Button(main_about, text="OK", command=top.destroy).pack(
             pady=(10, 0)
         )
+
+    def _read_license_text(self) -> str:
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "assets" / "LICENSE.txt")
+        candidates.append(Path(__file__).resolve().parent.parent / "assets" / "LICENSE.txt")
+        candidates.append(Path.cwd() / "assets" / "LICENSE.txt")
+        for candidate in candidates:
+            if candidate.is_file():
+                try:
+                    return candidate.read_text(encoding="utf-8")
+                except OSError:
+                    continue
+        return "PolyForm Noncommercial License 1.0.0\nhttps://polyformproject.org/licenses/noncommercial/1.0.0"
 
     def _choose_language(self) -> None:
         audit("choose_language")

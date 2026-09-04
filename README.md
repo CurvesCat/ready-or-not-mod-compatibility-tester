@@ -119,5 +119,3 @@ See [BUILD.md](BUILD.md).
 This tool launches the game repeatedly and may move, rename, or delete mod files
 according to your settings. Back up your saves and mods first. Use it at your
 own risk. The automated result is only a startup-stage smoke test.
-
-Simplified Chinese version: [README.zh-CN.md](README.zh-CN.md)

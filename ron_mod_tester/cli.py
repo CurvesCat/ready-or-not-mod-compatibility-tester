@@ -178,6 +178,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--rules",
         help="path to user rules.json (used by --plan)",
     )
+    parser.add_argument(
+        "--v2-run",
+        action="store_true",
+        help="build a V2 report from static/dependency/plan reports (T4 dry-run)",
+    )
     return parser
 
 
@@ -368,6 +373,61 @@ def _run_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_v2(args: argparse.Namespace) -> int:
+    """T4 v2 pipeline entry: report builder (dynamic execution added in T4b)."""
+    import json
+    from pathlib import Path
+
+    from .pipeline.v2_runner import build_v2_report, write_v2_report
+    from .planner.planner import build_plan
+    from .planner.rules import load_rules
+
+    if not args.static_json or not Path(args.static_json).is_file():
+        print("V2 run requires --static-json <path to static_analysis JSON>.", flush=True)
+        return 2
+    static_report = json.loads(Path(args.static_json).read_text(encoding="utf-8"))
+    dep_report = None
+    if args.dep_json:
+        dep_path = Path(args.dep_json)
+        if not dep_path.is_file():
+            print(f"Dependency report not found: {dep_path}", flush=True)
+            return 2
+        dep_report = json.loads(dep_path.read_text(encoding="utf-8"))
+
+    rules = load_rules(args.rules)
+    plan = build_plan(
+        static_report,
+        dep_report,
+        rules=rules,
+        log=lambda text: print(text, flush=True),
+    )
+    v2_report = build_v2_report(
+        static_report,
+        dep_report,
+        plan.as_dict(),
+        dry_run=True,
+    )
+    out_dir = (
+        Path(args.report_dir)
+        if args.report_dir
+        else Path(args.static_json).parent
+    )
+    json_path = write_v2_report(out_dir, v2_report)
+    print("\n=== V2 report (dry-run) ===", flush=True)
+    print(
+        f"mods {len(plan.mods)} / groups {len(plan.groups)} / "
+        f"conflicts {len(plan.conflict_pairs)}",
+        flush=True,
+    )
+    for group in plan.groups:
+        print(
+            f"  {group.group_id} [{group.reason}] " + ", ".join(group.mods),
+            flush=True,
+        )
+    print(f"V2 JSON report: {json_path}", flush=True)
+    return 0
+
+
 _PATTERNS = [
     (r"^  已移入隔离区：(.+)$", r"  Moved to quarantine: \1"),
     (r"^  已禁用（重命名）：(.+)$", r"  Disabled (renamed): \1"),
@@ -536,6 +596,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_dep_scan(args)
     if args.plan:
         return _run_plan(args)
+    if args.v2_run:
+        return _run_v2(args)
     if args.disposition == "delete" and not args.yes_delete:
         print(
             "Safety restriction: --disposition delete permanently deletes files. "

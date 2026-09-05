@@ -134,6 +134,33 @@ def _build_parser() -> argparse.ArgumentParser:
         "--repak-exe",
         help="path to repak.exe used by --static-scan",
     )
+    parser.add_argument(
+        "--dep-scan",
+        action="store_true",
+        help="parse uasset import tables and build cross-mod dependency edges (T2)",
+    )
+    parser.add_argument("--dotnet-exe", help="path to dotnet.exe used by --dep-scan")
+    parser.add_argument(
+        "--uasset-cli",
+        help="path to UAssetCLI.dll used by --dep-scan",
+    )
+    parser.add_argument(
+        "--engine",
+        default="VER_UE5_4",
+        help="Unreal engine version passed to UAssetCLI (default: VER_UE5_4)",
+    )
+    parser.add_argument(
+        "--asset-limit",
+        type=int,
+        default=0,
+        help="only parse the first N .uasset files per pak (0 = all)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="parallel worker processes for uasset parsing (default: 4)",
+    )
     return parser
 
 
@@ -199,6 +226,72 @@ def _run_static_scan(args: argparse.Namespace) -> int:
             f"(see JSON report)",
             flush=True,
         )
+    return 0
+
+
+def _run_dep_scan(args: argparse.Namespace) -> int:
+    """T2 dependency scan: resolve cross-pak references from cooked assets."""
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    from .static.deps import scan_dependencies
+
+    mod_folder = Path(args.mods) if args.mods else None
+    if mod_folder is None or not mod_folder.is_dir():
+        print("Dependency scan requires --mods <folder containing .pak files>.", flush=True)
+        return 2
+    if not args.dotnet_exe or not args.uasset_cli or not args.repak_exe:
+        print(
+            "Dependency scan requires --repak-exe, --dotnet-exe and --uasset-cli.",
+            flush=True,
+        )
+        return 2
+    report_dir = (
+        Path(args.report_dir)
+        if args.report_dir
+        else mod_folder.parent / (mod_folder.name + "_dep_reports")
+    )
+
+    result = scan_dependencies(
+        mod_folder,
+        repak_exe=Path(args.repak_exe),
+        dotnet_exe=Path(args.dotnet_exe),
+        uasset_cli_dll=Path(args.uasset_cli),
+        engine=args.engine,
+        asset_limit=max(0, args.asset_limit),
+        workers=max(1, args.workers),
+        log=lambda text: print(text, flush=True),
+    )
+    report_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    json_path = report_dir / f"dependency_analysis_{timestamp}.json"
+    json_path.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    edges = result["edges"]
+    print("\n=== Dependency scan finished ===", flush=True)
+    print(
+        f"assets parsed {result['parsed_assets']} / edges {len(edges)} / "
+        f"unresolved {len(result['unresolved_refs'])} / "
+        f"parse errors {len(result['parse_errors'])}",
+        flush=True,
+    )
+    print(f"JSON report: {json_path}", flush=True)
+    for edge in edges[:40]:
+        print(
+            f"  {edge['from_mod']} -> {edge['to_mod']} "
+            f"({edge['confidence']}, {edge['asset_path']})",
+            flush=True,
+        )
+    if len(edges) > 40:
+        print(f"  ... and {len(edges) - 40} more edges", flush=True)
+    if result["strongly_connected_components"]:
+        print("Strongly connected groups (must test together):", flush=True)
+        for component in result["strongly_connected_components"]:
+            print("  " + " <-> ".join(component), flush=True)
     return 0
 
 
@@ -366,6 +459,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv_list)
     if args.static_scan:
         return _run_static_scan(args)
+    if args.dep_scan:
+        return _run_dep_scan(args)
     if args.disposition == "delete" and not args.yes_delete:
         print(
             "Safety restriction: --disposition delete permanently deletes files. "

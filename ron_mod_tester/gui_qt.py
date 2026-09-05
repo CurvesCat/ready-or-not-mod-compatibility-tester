@@ -762,7 +762,7 @@ class MainWindow(QMainWindow):
         lang_btn.clicked.connect(self._choose_language)
         lay.addWidget(lang_btn)
 
-        ver = QLabel(f"v{VERSION} · preview")
+        ver = QLabel(f"v{VERSION}")
         ver.setObjectName("navHint")
         lay.addWidget(ver)
         return nav

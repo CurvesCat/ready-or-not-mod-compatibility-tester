@@ -15,7 +15,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ron-mod-compat",
         description=(
-            f"Ready or Not Mod Compatibility Tester v{VERSION} - tests .pak "
+            f"RoNCT (Ready or Not Mod Compatibility Tester) v{VERSION} - tests .pak "
             "mods one by one for startup compatibility."
         ),
     )
@@ -125,6 +125,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default="-windowed -nosplash",
         help='extra game launch arguments, e.g. "-windowed"',
     )
+    parser.add_argument(
+        "--static-scan",
+        action="store_true",
+        help="run static analysis (pak inventory + conflicts) without launching the game",
+    )
+    parser.add_argument(
+        "--repak-exe",
+        help="path to repak.exe used by --static-scan",
+    )
     return parser
 
 
@@ -144,6 +153,53 @@ def _wait_for_enter_if_interactive() -> None:
         sys.stdin.readline()
     except Exception:  # noqa: BLE001 - cosmetic only
         pass
+
+
+def _run_static_scan(args: argparse.Namespace) -> int:
+    """T1 static scan: list every pak and report duplicate/overwrite conflicts."""
+    from pathlib import Path
+
+    from .static.analyzer import analyze_folder
+    from .static.report import summarize, write_static_report
+
+    mod_folder = Path(args.mods) if args.mods else None
+    if mod_folder is None or not mod_folder.is_dir():
+        print("Static scan requires --mods <folder containing .pak files>.", flush=True)
+        return 2
+    report_dir = (
+        Path(args.report_dir)
+        if args.report_dir
+        else mod_folder.parent / (mod_folder.name + "_static_reports")
+    )
+    repak_exe = Path(args.repak_exe) if args.repak_exe else None
+
+    analysis = analyze_folder(
+        mod_folder,
+        repak_exe=repak_exe,
+        log=lambda text: print(text, flush=True),
+    )
+    json_path = write_static_report(report_dir, analysis)
+    summary = summarize(analysis)
+
+    print("\n=== Static scan finished ===", flush=True)
+    print(
+        f"paks {summary['paks']} / entries {summary['entries']} / "
+        f"parse errors {summary['parse_errors']} / "
+        f"duplicate groups {summary['duplicate_groups']} / "
+        f"overwrite groups {summary['overwrite_groups']}",
+        flush=True,
+    )
+    print(f"JSON report: {json_path}", flush=True)
+    for conflict in analysis.conflicts[:20]:
+        names = ", ".join(p.filename for p in conflict.providers)
+        print(f"  [{conflict.kind}] {conflict.internal_path} -> {names}", flush=True)
+    if len(analysis.conflicts) > 20:
+        print(
+            f"  ... and {len(analysis.conflicts) - 20} more conflict paths "
+            f"(see JSON report)",
+            flush=True,
+        )
+    return 0
 
 
 _PATTERNS = [
@@ -308,6 +364,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args = _build_parser().parse_args(argv_list)
+    if args.static_scan:
+        return _run_static_scan(args)
     if args.disposition == "delete" and not args.yes_delete:
         print(
             "Safety restriction: --disposition delete permanently deletes files. "

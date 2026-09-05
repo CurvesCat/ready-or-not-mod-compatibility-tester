@@ -161,6 +161,23 @@ def _build_parser() -> argparse.ArgumentParser:
         default=4,
         help="parallel worker processes for uasset parsing (default: 4)",
     )
+    parser.add_argument(
+        "--plan",
+        action="store_true",
+        help="build a deploy plan from static/dependency reports (T3)",
+    )
+    parser.add_argument(
+        "--static-json",
+        help="path to a T1 static_analysis JSON report (used by --plan)",
+    )
+    parser.add_argument(
+        "--dep-json",
+        help="path to a T2 dependency_analysis JSON report (used by --plan)",
+    )
+    parser.add_argument(
+        "--rules",
+        help="path to user rules.json (used by --plan)",
+    )
     return parser
 
 
@@ -292,6 +309,62 @@ def _run_dep_scan(args: argparse.Namespace) -> int:
         print("Strongly connected groups (must test together):", flush=True)
         for component in result["strongly_connected_components"]:
             print("  " + " <-> ".join(component), flush=True)
+    return 0
+
+
+def _run_plan(args: argparse.Namespace) -> int:
+    """T3 planner: turn static + dependency reports into deploy groups."""
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    from .planner.planner import build_plan
+    from .planner.rules import load_rules
+
+    if not args.static_json or not Path(args.static_json).is_file():
+        print("Plan requires --static-json <path to static_analysis JSON>.", flush=True)
+        return 2
+    static_report = json.loads(
+        Path(args.static_json).read_text(encoding="utf-8")
+    )
+    dep_report: dict[str, Any] | None = None
+    if args.dep_json:
+        dep_path = Path(args.dep_json)
+        if not dep_path.is_file():
+            print(f"Dependency report not found: {dep_path}", flush=True)
+            return 2
+        dep_report = json.loads(dep_path.read_text(encoding="utf-8"))
+
+    rules = load_rules(args.rules)
+    plan = build_plan(
+        static_report,
+        dep_report,
+        rules=rules,
+        log=lambda text: print(text, flush=True),
+    )
+    if args.report_dir:
+        out_dir = Path(args.report_dir)
+    else:
+        out_dir = Path(args.static_json).parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    json_path = out_dir / f"deploy_plan_{timestamp}.json"
+    json_path.write_text(
+        json.dumps(plan.as_dict(), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    print("\n=== Deploy plan ===", flush=True)
+    print(f"Mods {len(plan.mods)} / groups {len(plan.groups)} / conflicts {len(plan.conflict_pairs)}", flush=True)
+    for group in plan.groups:
+        print(
+            f"  {group.group_id} [{group.reason}] "
+            + ", ".join(group.mods),
+            flush=True,
+        )
+    for warning in plan.warnings:
+        print("  WARN " + warning, flush=True)
+    print(f"JSON report: {json_path}", flush=True)
     return 0
 
 
@@ -461,6 +534,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_static_scan(args)
     if args.dep_scan:
         return _run_dep_scan(args)
+    if args.plan:
+        return _run_plan(args)
     if args.disposition == "delete" and not args.yes_delete:
         print(
             "Safety restriction: --disposition delete permanently deletes files. "

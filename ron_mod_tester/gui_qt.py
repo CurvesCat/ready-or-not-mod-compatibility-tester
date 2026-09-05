@@ -18,6 +18,7 @@ from PySide6.QtGui import (
     QColor,
     QDesktopServices,
     QFont,
+    QFontDatabase,
     QFontMetrics,
     QIcon,
     QPainter,
@@ -123,7 +124,8 @@ def fluent_qss(dark: bool) -> str:
     t = THEME_DARK if dark else THEME_LIGHT
     return f"""
 * {{
-    font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    font-family: "MiSans", "SF Pro Text", "SF Pro Display", "PingFang SC",
+                 "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
                  "Microsoft YaHei UI", "PingFang SC", sans-serif;
     font-size: 14px;
     color: {t["text"]};
@@ -376,6 +378,22 @@ def _asset_roots() -> list[Path]:
     return roots
 
 
+def load_bundled_fonts() -> bool:
+    """Register bundled MiSans fonts (free to use, visually close to PingFang/SF)."""
+    loaded = False
+    for base in _asset_roots():
+        fonts_dir = base / "assets" / "fonts"
+        if not fonts_dir.is_dir():
+            continue
+        for font_file in sorted(fonts_dir.rglob("*.ttf")):
+            try:
+                if QFontDatabase.addApplicationFont(str(font_file)) >= 0:
+                    loaded = True
+            except Exception:
+                continue
+    return loaded
+
+
 def _mix_color(a: QColor, b: QColor, amount: float) -> QColor:
     amount = max(0.0, min(1.0, amount))
     return QColor(
@@ -593,8 +611,13 @@ class MainWindow(QMainWindow):
         self.language = lang if lang in ("zh", "en") else "zh"
         set_language(self.language)
 
-        self.dark = system_uses_dark_theme()
         self.cfg_data = _read_cfg()
+        self.theme_mode = str(self.cfg_data.get("theme_mode") or "system")
+        self.dark = (
+            system_uses_dark_theme()
+            if self.theme_mode == "system"
+            else self.theme_mode == "dark"
+        )
 
         # ----- persisted user state -----
         self.folder_path = str(self.cfg_data.get("mod_folder") or "")
@@ -685,8 +708,6 @@ class MainWindow(QMainWindow):
 
     def _refresh_static_texts(self) -> None:
         self.status_label.setText(self.last_status or _t("ready_status"))
-        theme_name = _t("system_dark") if self.dark else _t("system_light")
-        self.theme_label.setText(f"{_t('follow_system')} · {theme_name}")
 
     def _build_nav(self) -> QWidget:
         nav = QWidget()
@@ -1076,7 +1097,7 @@ class MainWindow(QMainWindow):
         bar = QWidget()
         bar.setObjectName("statusBar")
         lay = QHBoxLayout(bar)
-        lay.setContentsMargins(24, 8, 24, 8)
+        lay.setContentsMargins(24, 6, 24, 6)
         lay.setSpacing(8)
         self.status_dot = QLabel("●")
         self.status_dot.setObjectName("statusDot")
@@ -1084,9 +1105,13 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel(_t("ready_status"))
         self.status_label.setObjectName("statusText")
         lay.addWidget(self.status_label, 1)
-        self.theme_label = QLabel()
-        self.theme_label.setObjectName("statusText")
-        lay.addWidget(self.theme_label)
+        self.theme_seg = SegmentedControl(
+            [_t("theme_light_name"), _t("theme_dark_name"), _t("follow_system")],
+            dark=self.dark,
+        )
+        self.theme_seg.setCurrentIndex(self._theme_index(self.theme_mode), animate=False)
+        self.theme_seg.currentIndexChanged.connect(self._on_theme_picker)
+        lay.addWidget(self.theme_seg)
         return bar
 
     # ----------------------------------------------------------------- utils
@@ -1120,16 +1145,44 @@ class MainWindow(QMainWindow):
         return t.get(name, t["text"])
 
     def _check_theme(self) -> None:
+        if self.theme_mode != "system":
+            return
         dark = system_uses_dark_theme()
         if dark != self.dark:
-            self.dark = dark
-            self.setStyleSheet(fluent_qss(self.dark))
-            self._refresh_static_texts()
-            self._set_status(self.last_status, self.last_status_kind)
-            for switch in self.findChildren(ToggleSwitch):
-                switch.set_theme(self.dark)
-            for seg in self.findChildren(SegmentedControl):
-                seg.set_theme(self.dark)
+            self._apply_theme()
+
+    @staticmethod
+    def _theme_index(mode: str) -> int:
+        return {"light": 0, "dark": 1, "system": 2}.get(mode, 2)
+
+    @staticmethod
+    def _theme_mode_at(index: int) -> str:
+        return ("light", "dark", "system")[max(0, min(2, int(index)))]
+
+    def _on_theme_picker(self, index: int) -> None:
+        mode = self._theme_mode_at(index)
+        if mode == self.theme_mode:
+            return
+        self.theme_mode = mode
+        _write_cfg({"theme_mode": mode})
+        self._apply_theme()
+
+    def _apply_theme(self) -> None:
+        if self.theme_mode == "system":
+            dark = system_uses_dark_theme()
+        else:
+            dark = self.theme_mode == "dark"
+        if dark == self.dark:
+            return
+        self.dark = dark
+        self.setStyleSheet(fluent_qss(self.dark))
+        self._refresh_static_texts()
+        self._set_status(self.last_status, self.last_status_kind)
+        for switch in self.findChildren(ToggleSwitch):
+            switch.set_theme(self.dark)
+        for seg in self.findChildren(SegmentedControl):
+            seg.set_theme(self.dark)
+        self._fade_in()
 
     # ------------------------------------------------------------ language
     def _choose_language(self) -> None:
@@ -1309,9 +1362,37 @@ class MainWindow(QMainWindow):
         return not missing
 
     def _toggle_advanced(self) -> None:
-        shown = not self.adv_panel.isVisible()
-        self.adv_panel.setVisible(shown)
-        self.adv_btn.setText(_t("hide_advanced") if shown else _t("show_advanced"))
+        current_anim = getattr(self, "_adv_anim", None)
+        if current_anim is not None and current_anim.state() == QPropertyAnimation.Running:
+            current_anim.stop()
+        expanding = not self.adv_panel.isVisible()
+        max_size = 16777215  # QWIDGETSIZE_MAX
+        if expanding:
+            self.adv_panel.setVisible(True)
+            self.adv_panel.setMaximumHeight(0)
+            start = 0
+            end = max(1, self.adv_panel.sizeHint().height())
+        else:
+            start = max(1, self.adv_panel.height())
+            end = 0
+
+        anim = QPropertyAnimation(self.adv_panel, b"maximumHeight", self)
+        anim.setDuration(220)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.setStartValue(start)
+        anim.setEndValue(end)
+
+        def _finish() -> None:
+            if expanding:
+                self.adv_panel.setMaximumHeight(max_size)
+            else:
+                self.adv_panel.setVisible(False)
+                self.adv_panel.setMaximumHeight(max_size)
+
+        anim.finished.connect(_finish)
+        self._adv_anim = anim
+        anim.start()
+        self.adv_btn.setText(_t("hide_advanced") if expanding else _t("show_advanced"))
 
     # --------------------------------------------------------------- run
     def _build_config(self) -> AppConfig | None:
@@ -1902,7 +1983,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(SHORT_NAME)
     app.setApplicationVersion(VERSION)
-    app.setFont(QFont("Segoe UI Variable", 10))
+    load_bundled_fonts()
+    app.setFont(QFont("MiSans", 10))
     app.setStyle("Fusion")
     app.setWindowIcon(_app_icon())
 

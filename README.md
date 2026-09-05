@@ -29,6 +29,9 @@ mods.
 - **Windows 11 Fluent-style interface** built with PySide6/Qt. It no longer uses
   the old tkinter interface.
 - The UI theme **follows the Windows light/dark setting automatically**.
+- A light / dark / follow-system switcher is available in the status bar.
+- The UI uses the bundled **MiSans** font (free for commercial use) for a
+  clean, Apple-style look on both Chinese and English text.
 - Simplified **one-click workflow**: choose a Mod folder → click the primary
   button → read the result. No technical knowledge required.
 - The **advanced options** are collapsed by default (strategy, timings, launch

@@ -34,7 +34,7 @@ from tkinter import (
     ttk,
 )
 
-from . import APP_NAME, AUTHOR, VERSION, default_backup_dir
+from . import APP_NAME, SHORT_NAME, AUTHOR, VERSION, default_backup_dir
 from .calibrate import calibrate
 from .i18n import t, set_language, get_language
 from .log import audit, get_logger, install_excepthook, setup_logging, LOG_FILE
@@ -1045,7 +1045,7 @@ class App:
 
         ttk.Label(
             main_about,
-            text=f"{APP_NAME} v{VERSION}",
+            text=f"{SHORT_NAME} · {t('app_title')} v{VERSION}",
             style="Title.TLabel",
         ).pack()
         ttk.Label(

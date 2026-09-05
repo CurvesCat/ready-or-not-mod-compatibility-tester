@@ -1,5 +1,5 @@
 ================================================================
-Ready or Not Mod Compatibility Tester - Command Line Usage Guide
+Ready or Not Mod Compatibility Tester (RoNCT) - Command Line Usage Guide
 ================================================================
 
 Author: CurvesCat

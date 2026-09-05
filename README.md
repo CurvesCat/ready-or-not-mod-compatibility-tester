@@ -1,6 +1,8 @@
-# Ready or Not Mod Compatibility Tester
+# Ready or Not Mod Compatibility Tester (RoNCT)
 
 **Author:** CurvesCat
+
+**Short name:** RoNCT
 
 **Nexus Mods:** <https://www.nexusmods.com/readyornot/mods/8575>
 

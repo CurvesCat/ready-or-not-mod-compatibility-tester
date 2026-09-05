@@ -10,6 +10,7 @@ python -m pip install -r requirements.txt pyinstaller
 python -m PyInstaller --noconfirm --clean --onefile --windowed ^
   --icon assets\icon.ico ^
   --name ReadyOrNot-ModCompatTester ^
+  --add-data "assets;assets" ^
   --hidden-import ron_mod_tester.pipeline.v2_gui ^
   run_gui.py
 ```

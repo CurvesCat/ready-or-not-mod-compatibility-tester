@@ -12,15 +12,26 @@ import sys
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QFont, QIcon, QPixmap
+from PySide6.QtCore import QObject, QRectF, QSize, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QVariantAnimation
+from PySide6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QFont,
+    QFontMetrics,
+    QIcon,
+    QPainter,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
+    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -336,29 +347,195 @@ def _resolve_tools(cfg: dict) -> tuple[dict, list[str]]:
 
 
 def _app_icon() -> QIcon:
-    if getattr(sys, "frozen", False):
-        base = Path(sys.executable).resolve().parent
-    else:
-        base = Path(__file__).resolve().parent.parent
-    for icon in (base / "assets" / "icon.ico", base / "assets" / "logo.png"):
-        if icon.is_file():
-            return QIcon(str(icon))
+    for base in _asset_roots():
+        for icon in (base / "assets" / "icon.ico", base / "assets" / "logo.png"):
+            if icon.is_file():
+                return QIcon(str(icon))
     return QIcon()
 
 
 def _logo_pixmap(size: int = 30) -> QPixmap:
-    if getattr(sys, "frozen", False):
-        base = Path(sys.executable).resolve().parent
-    else:
-        base = Path(__file__).resolve().parent.parent
     pix = QPixmap()
-    logo = base / "assets" / "logo.png"
-    if logo.is_file():
-        pix.load(str(logo))
+    for base in _asset_roots():
+        logo = base / "assets" / "logo.png"
+        if logo.is_file():
+            pix.load(str(logo))
+            break
     if pix.isNull():
         pix = QPixmap(size, size)
         pix.fill(Qt.transparent)
     return pix.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+
+def _asset_roots() -> list[Path]:
+    roots: list[Path] = []
+    if hasattr(sys, "_MEIPASS"):
+        roots.append(Path(sys._MEIPASS))
+    roots.append(Path(sys.executable).resolve().parent)
+    roots.append(Path(__file__).resolve().parent.parent)
+    return roots
+
+
+def _mix_color(a: QColor, b: QColor, amount: float) -> QColor:
+    amount = max(0.0, min(1.0, amount))
+    return QColor(
+        round(a.red() + (b.red() - a.red()) * amount),
+        round(a.green() + (b.green() - a.green()) * amount),
+        round(a.blue() + (b.blue() - a.blue()) * amount),
+        round(a.alpha() + (b.alpha() - a.alpha()) * amount),
+    )
+
+
+class ToggleSwitch(QAbstractButton):
+    """Windows 11 style switch with a smooth knob animation."""
+
+    def __init__(self, dark: bool = False, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedSize(48, 26)
+        self._dark = bool(dark)
+        self._progress = 1.0 if self.isChecked() else 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(180)
+        self._anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._anim.valueChanged.connect(self._on_progress)
+        self.toggled.connect(self._animate_to_state)
+
+    def set_theme(self, dark: bool) -> None:
+        self._dark = bool(dark)
+        self.update()
+
+    def _on_progress(self, value: object) -> None:
+        self._progress = float(value)
+        self.update()
+
+    def _animate_to_state(self, checked: bool) -> None:
+        self._anim.stop()
+        self._anim.setStartValue(self._progress)
+        self._anim.setEndValue(1.0 if checked else 0.0)
+        self._anim.start()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        t = THEME_DARK if self._dark else THEME_LIGHT
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+
+        track_w = 42
+        track_h = 22
+        x = (self.width() - track_w) / 2
+        y = (self.height() - track_h) / 2
+        off = QColor(t["scroll"])
+        on = QColor(t["accent"])
+        painter.setBrush(_mix_color(off, on, self._progress))
+        painter.drawRoundedRect(
+            int(round(x)), int(round(y)), track_w, track_h, track_h / 2, track_h / 2
+        )
+
+        knob = 16
+        inset = 3
+        travel = track_w - inset * 2 - knob
+        kx = x + inset + travel * self._progress
+        painter.setBrush(QColor("#FFFFFF"))
+        painter.drawEllipse(
+            int(round(kx)), int(round(y + (track_h - knob) / 2)), knob, knob
+        )
+
+
+class SegmentedControl(QWidget):
+    """Windows 11 style segmented picker with an animated indicator."""
+
+    currentIndexChanged = Signal(int)
+
+    def __init__(self, options: list[str], dark: bool = False) -> None:
+        super().__init__()
+        self._options = list(options)
+        self._dark = bool(dark)
+        self._index = 0
+        self._progress = 0.0
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(36)
+        metrics = QFontMetrics(self.font())
+        widths = [metrics.horizontalAdvance(text) + 30 for text in self._options]
+        self._min_w = max(260, sum(widths) + 12)
+        self.setMinimumWidth(self._min_w)
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(180)
+        self._anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._anim.valueChanged.connect(self._on_progress)
+
+    def set_theme(self, dark: bool) -> None:
+        self._dark = bool(dark)
+        self.update()
+
+    def currentIndex(self) -> int:
+        return self._index
+
+    def setCurrentIndex(self, index: int, animate: bool = True) -> None:
+        index = max(0, min(len(self._options) - 1, int(index)))
+        if index == self._index:
+            return
+        self._index = index
+        self.currentIndexChanged.emit(index)
+        if animate:
+            self._anim.stop()
+            self._anim.setStartValue(self._progress)
+            self._anim.setEndValue(float(index))
+            self._anim.start()
+        else:
+            self._progress = float(index)
+            self.update()
+
+    def _on_progress(self, value: object) -> None:
+        self._progress = float(value)
+        self.update()
+
+    def sizeHint(self):  # noqa: N802
+        return QSize(self._min_w, 36)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if not self._options:
+            return
+        inner = self.width() - 6
+        seg = inner / len(self._options)
+        index = int((event.position().x() - 3) / seg)
+        self.setCurrentIndex(index)
+        super().mousePressEvent(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        t = THEME_DARK if self._dark else THEME_LIGHT
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+
+        outer = QRectF(0, 0, self.width(), self.height())
+        painter.setBrush(QColor(t["activeBg"]))
+        painter.drawRoundedRect(outer, 8, 8)
+
+        count = len(self._options)
+        if count and self._progress >= 0:
+            margin = 3
+            inner_w = self.width() - margin * 2
+            seg_w = inner_w / count
+            pos = max(0.0, min(float(count - 1), self._progress))
+            sel = QRectF(
+                margin + seg_w * pos,
+                margin,
+                seg_w,
+                self.height() - margin * 2,
+            )
+            painter.setBrush(QColor(t["card"]))
+            painter.drawRoundedRect(sel, 6, 6)
+
+        painter.setPen(Qt.NoPen)
+        for i, text in enumerate(self._options):
+            cell = QRectF(3 + seg_w * i, 0, seg_w, self.height())
+            if i == self._index and abs(self._progress - i) < 0.05:
+                painter.setPen(QColor(t["text"]))
+            else:
+                painter.setPen(QColor(t["secondary"]))
+            painter.drawText(cell, Qt.AlignCenter, text)
 
 
 class RunWorker(QObject):
@@ -504,6 +681,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
         self.setStyleSheet(fluent_qss(self.dark))
         self._refresh_static_texts()
+        QTimer.singleShot(0, self._fade_in)
 
     def _refresh_static_texts(self) -> None:
         self.status_label.setText(self.last_status or _t("ready_status"))
@@ -740,13 +918,19 @@ class MainWindow(QMainWindow):
             grid.addWidget(lab, grid.rowCount(), 0)
             grid.addWidget(widget, grid.rowCount() - 1, 1)
 
-        self.strategy_combo = QComboBox()
-        self.strategy_combo.addItem(_t("mode_isolated"), "isolated")
-        self.strategy_combo.addItem(_t("mode_strict"), "strict")
-        self.strategy_combo.setCurrentIndex(
-            0 if self.mode != "strict" else 1
+        # 测试策略：Windows 11 分段选择器
+        strategy_lab = QLabel(_t("test_strategy"))
+        strategy_lab.setObjectName("hint")
+        strategy_lab.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        grid.addWidget(strategy_lab, grid.rowCount(), 0)
+        self.strategy_seg = SegmentedControl(
+            [_t("mode_isolated"), _t("mode_strict")], dark=self.dark
         )
-        labelled(_t("test_strategy"), self.strategy_combo)
+        self.strategy_seg.setCurrentIndex(0 if self.mode != "strict" else 1, animate=False)
+        seg_row = QHBoxLayout()
+        seg_row.addWidget(self.strategy_seg)
+        seg_row.addStretch()
+        grid.addLayout(seg_row, grid.rowCount() - 1, 1)
 
         self.stable_spin = QSpinBox()
         self.stable_spin.setRange(5, 600)
@@ -780,22 +964,64 @@ class MainWindow(QMainWindow):
         self.extra_edit.setText(self.extra_args)
         labelled(_t("extra_args"), self.extra_edit)
 
-        self.close_check = QCheckBox(_t("close_running"))
-        self.close_check.setChecked(self.close_running)
-        grid.addWidget(self.close_check, grid.rowCount(), 0, 1, 2)
+        def switch_row(text: str) -> ToggleSwitch:
+            lab = QLabel(text)
+            lab.setObjectName("hint")
+            row = QHBoxLayout()
+            row.addWidget(lab)
+            row.addStretch()
+            sw = ToggleSwitch(dark=self.dark)
+            row.addWidget(sw)
+            grid.addLayout(row, grid.rowCount(), 0, 1, 2)
+            return sw
 
-        self.backup_check = QCheckBox(_t("backup_mods"))
-        self.backup_check.setChecked(self.backup_mods)
-        grid.addWidget(self.backup_check, grid.rowCount(), 0, 1, 2)
+        self.close_switch = switch_row(_t("close_running"))
+        self.close_switch.setChecked(self.close_running)
+        self.backup_switch = switch_row(_t("backup_mods"))
+        self.backup_switch.setChecked(self.backup_mods)
+        self.warmup_switch = switch_row(_t("warmup"))
+        self.warmup_switch.setChecked(self.warmup)
 
-        self.warmup_check = QCheckBox(_t("warmup"))
-        self.warmup_check.setChecked(self.warmup)
-        grid.addWidget(self.warmup_check, grid.rowCount(), 0, 1, 2)
+        # 改动即时同步到内存，切换语言/主题时不会丢失
+        self.strategy_seg.currentIndexChanged.connect(
+            lambda idx: setattr(
+                self, "mode", "strict" if idx == 1 else "isolated"
+            )
+        )
+        self.stable_spin.valueChanged.connect(lambda v: setattr(self, "stable", int(v)))
+        self.startup_spin.valueChanged.connect(
+            lambda v: setattr(self, "startup", int(v))
+        )
+        self.menu_spin.valueChanged.connect(
+            lambda v: setattr(self, "menu_hold", int(v))
+        )
+        self.disposition_combo.currentIndexChanged.connect(
+            lambda _i: setattr(
+                self,
+                "disposition",
+                str(self.disposition_combo.currentData() or "quarantine"),
+            )
+        )
+        self.extra_edit.textChanged.connect(
+            lambda text: setattr(self, "extra_args", str(text).strip())
+        )
+        self.close_switch.toggled.connect(
+            lambda checked: setattr(self, "close_running", bool(checked))
+        )
+        self.backup_switch.toggled.connect(
+            lambda checked: setattr(self, "backup_mods", bool(checked))
+        )
+        self.warmup_switch.toggled.connect(
+            lambda checked: setattr(self, "warmup", bool(checked))
+        )
 
         # 游戏根目录（仅在 Steam 自动检测失败时需要）
         self.game_root_edit = QLineEdit()
         self.game_root_edit.setObjectName("plainEdit")
         self.game_root_edit.setText(self.game_root)
+        self.game_root_edit.textChanged.connect(
+            lambda text: setattr(self, "game_root", str(text).strip())
+        )
         grid.addWidget(QLabel(_t("game_root")), grid.rowCount(), 0)
         root_row = QHBoxLayout()
         root_row.addWidget(self.game_root_edit, 1)
@@ -900,21 +1126,17 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(fluent_qss(self.dark))
             self._refresh_static_texts()
             self._set_status(self.last_status, self.last_status_kind)
+            for switch in self.findChildren(ToggleSwitch):
+                switch.set_theme(self.dark)
+            for seg in self.findChildren(SegmentedControl):
+                seg.set_theme(self.dark)
 
     # ------------------------------------------------------------ language
     def _choose_language(self) -> None:
         if self.running:
             return
-        menu = QMenu(self)
-        zh = menu.addAction("中文")
-        en = menu.addAction("English")
-        action = menu.exec(self.mapToGlobal(self.rect().center()))
-        if action == zh:
-            new_lang = "zh"
-        elif action == en:
-            new_lang = "en"
-        else:
-            return
+        # 点击即切换，不再弹出选择菜单
+        new_lang = "en" if self.language == "zh" else "zh"
         if new_lang == self.language:
             return
         self.language = new_lang
@@ -924,17 +1146,34 @@ class MainWindow(QMainWindow):
         self._refresh_folder_hint()
         self._sync_post_build_state()
 
+    def _fade_in(self) -> None:
+        """Windows-like content fade-in after a rebuild."""
+        central = self.centralWidget()
+        if central is None:
+            return
+        effect = QGraphicsOpacityEffect(central)
+        central.setGraphicsEffect(effect)
+        effect.setOpacity(0.0)
+        anim = QPropertyAnimation(effect, b"opacity", self)
+        anim.setDuration(180)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.finished.connect(lambda: central.setGraphicsEffect(None))
+        self._fade_anim = anim
+        anim.start()
+
     # ------------------------------------------------------------- config
     def _collect_advanced(self) -> None:
-        self.mode = str(self.strategy_combo.currentData() or "isolated")
+        self.mode = "strict" if self.strategy_seg.currentIndex() == 1 else "isolated"
         self.stable = int(self.stable_spin.value())
         self.startup = int(self.startup_spin.value())
         self.menu_hold = int(self.menu_spin.value())
         self.disposition = str(self.disposition_combo.currentData() or "quarantine")
         self.extra_args = self.extra_edit.text().strip()
-        self.close_running = self.close_check.isChecked()
-        self.backup_mods = self.backup_check.isChecked()
-        self.warmup = self.warmup_check.isChecked()
+        self.close_running = self.close_switch.isChecked()
+        self.backup_mods = self.backup_switch.isChecked()
+        self.warmup = self.warmup_switch.isChecked()
         self.game_root = self.game_root_edit.text().strip()
 
     def _save_prefs(self, config: AppConfig) -> None:
@@ -1176,7 +1415,11 @@ class MainWindow(QMainWindow):
 
     def _set_running_ui(self, running: bool) -> None:
         self.cta.setEnabled(not running)
-        self.cta.setText(_t("stop") if running else _t("rerun_test"))
+        self.cta.setText(
+            _t("stop")
+            if running
+            else (_t("rerun_test") if self.summary else _t("begin_test"))
+        )
         self.stop_btn.setVisible(running)
         self.folder_edit.setEnabled(not running)
         self.progress.setVisible(running)

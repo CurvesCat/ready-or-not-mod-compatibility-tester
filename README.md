@@ -1,5 +1,7 @@
 # Ready or Not Mod Compatibility Tester (RoNCT)
 
+<p align="center"><img src="assets/logo.png" alt="RoNCT" width="120"></p>
+
 **Author:** CurvesCat
 
 **Short name:** RoNCT

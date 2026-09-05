@@ -24,7 +24,7 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 · 底部状态栏右侧有“浅色 / 深色 / 跟随系统”切换：
   默认跟随 Windows；也可以手动固定浅色或深色，选择会自动保存。
 · 左侧导航：一键测试（回到主页）、教程、打开报告目录、运行日志、还原备份、关于；
-  底部语言按钮点击一下就会直接切换 中文 / English。
+  首次打开默认 English；底部语言按钮点击一下就会直接切换 中文 / English。
 · 页面整体可以上下滚动；高级选项默认收起，需要时再展开。
 
 ────────────────────────────
@@ -158,8 +158,8 @@ The status bar has a Light / Dark / Follow system switcher. By default it
 follows Windows automatically; you can also fix light or dark manually.
 Left navigation: One-click test (home), Tutorial, Open report folder,
 Run log, Restore backup, About. The button at the bottom toggles directly
-between Chinese and English. The whole page scrolls; advanced options are
-collapsed by default.
+between Chinese and English (English is the first-launch default). The whole
+page scrolls; advanced options are collapsed by default.
 
 ------------------------------------------------------------
 3. Before you start

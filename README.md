@@ -38,6 +38,8 @@ mods.
   arguments, handling of unusable mods, game root).
 - Nexus Mods API key can be saved locally for optional dependency lookups.
 - Chinese / English UI switchable at any time from the left navigation.
+- First launch defaults to **English**; switch to 中文 with one click in the
+  left navigation.
 
 ## Features
 

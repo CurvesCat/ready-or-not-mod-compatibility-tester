@@ -624,7 +624,7 @@ class RunWorker(QObject):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, lang: str = "zh") -> None:
+    def __init__(self, lang: str = "en") -> None:
         super().__init__()
         self.language = lang if lang in ("zh", "en") else "zh"
         set_language(self.language)
@@ -1367,11 +1367,10 @@ class MainWindow(QMainWindow):
             detected = detect_mod_dir(info)
             if detected:
                 self.mod_dir_path = str(detected)
+        # 首次打开（没有保存过路径）时，默认选游戏的 Mod 文件夹（Paks）
         if not self.folder_path and self.mod_dir_path:
-            candidate = Path(self.mod_dir_path)
-            if list_mod_paks(candidate):
-                self.folder_path = self.mod_dir_path
-                self.folder_edit.setText(self.folder_path)
+            self.folder_path = self.mod_dir_path
+            self.folder_edit.setText(self.folder_path)
 
     def _detect(self):
         try:
@@ -2098,7 +2097,7 @@ def main() -> int:
         pass
 
     cfg = _read_cfg()
-    lang = cfg.get("language") if cfg.get("language") in ("zh", "en") else "zh"
+    lang = cfg.get("language") if cfg.get("language") in ("zh", "en") else "en"
     app = QApplication(sys.argv)
     app.setApplicationName(SHORT_NAME)
     app.setApplicationVersion(VERSION)

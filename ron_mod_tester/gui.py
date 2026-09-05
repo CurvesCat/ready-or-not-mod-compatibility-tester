@@ -1482,7 +1482,13 @@ class App:
 
     def _save_config(self, config: AppConfig) -> None:
         CONFIG_PATH.mkdir(parents=True, exist_ok=True)
-        data = {
+        data: dict = {}
+        if CONFIG_FILE.is_file():
+            try:
+                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                data = {}
+        data.update({
             "mod_folder": str(config.mod_folder) if config.mod_folder else "",
             "game_root": str(config.game_root) if config.game_root else "",
             "exe_path": str(config.exe_path) if config.exe_path else "",
@@ -1503,7 +1509,7 @@ class App:
             "disposition": config.disposition,
             "warmup": config.warmup,
             "extra_args": config.extra_args,
-        }
+        })
         try:
             CONFIG_FILE.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"

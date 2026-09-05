@@ -17,6 +17,6 @@ venv/
 .codex/
 work/
 outputs/
+backup/
 *.log
 manifest.json
-

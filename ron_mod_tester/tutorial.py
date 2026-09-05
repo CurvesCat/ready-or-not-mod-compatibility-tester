@@ -90,7 +90,7 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 · “高级选项 → 隔离目录”可以自定义隔离区位置；默认放在软件(exe)旁边，
   不再往“我的文档”里堆文件。想恢复默认就点“设为 exe 旁”。
 · 左侧导航“打开隔离区”可以随时查看被隔离的不可用 Mod；若还没有隔离区，
-  会提示隔离区生成的位置（在报告目录的 quarantine 文件夹）。
+  会提示隔离区生成的位置（默认在软件目录的 quarantine 文件夹）。
 · 左侧导航“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
 · “完全还原”选项还会移除备份后新增的非系统 Mod，做到真正回滚。
 · 测试完成后，“打开报告目录”里能看到隔离区（quarantine）和日志。
@@ -108,14 +108,13 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 ────────────────────────────
 十、报告与日志在哪
 ────────────────────────────
-默认报告输出到：
-· 候选文件夹测试：Mod 文件夹旁边 *_test_reports
-· 游戏目录内已安装：游戏目录旁边 RoN_ModCompat_Reports
+所有默认输出都放在软件（exe）所在的目录，不会写进“我的文档”或 AppData：
+· reports/ —— CSV / JSON 报告、每次启动的日志
+· quarantine/ —— 隔离的不可用 Mod
+· backup/ —— 测试前自动备份
+· debug.log —— 调试日志（软件根目录）
 
-里面有 mod_compat_report_*.csv / json、可用/不可用列表、
-quarantine/（隔离区）和 logs/（每次启动的日志）。
-
-调试日志：%APPDATA%\\RoNModCompatTester\\debug.log
+只有你在高级选项里手动指定其他位置时，才会写到别处。
 日志按 1MB 轮转、保留 3 份历史，不会无限占空间。遇到 bug 时把 debug.log
 内容发给作者即可排查。
 
@@ -221,9 +220,9 @@ Click "How to get an API key" to open the Nexus key page.
 8. Backup and restore
 ------------------------------------------------------------
 The Mod folder state is recorded before each test and a backup is created
-according to the settings. "Open quarantine" in the left navigation opens the
-folder where unusable mods are moved (next to the executable by default; set
-it in Advanced options under "Quarantine folder", or click "Use exe folder").
+according to the settings (backup folder next to the exe). "Open quarantine"
+opens the folder where unusable mods are moved (next to the executable by
+default; configure it under Advanced options > "Quarantine folder").
 "Restore backup" copies the backed-up non-system mods back to the game folder.
 "Full restore" also removes non-system mods added after the backup for a true
 rollback.
@@ -243,14 +242,14 @@ rollback.
 ------------------------------------------------------------
 10. Reports and logs
 ------------------------------------------------------------
-Default report locations:
-- Candidate-folder tests: *_test_reports next to the Mod folder.
-- Installed tests: RoN_ModCompat_Reports next to the game directory.
+All default output stays inside the software (exe) folder - nothing is written
+to Documents or AppData unless you choose a custom location:
+- reports/ - CSV/JSON reports and per-launch logs
+- quarantine/ - unusable mods
+- backup/ - automatic pre-test backup
+- debug.log - debug log at the software root
 
-They contain mod_compat_report_*.csv/json, usable/unusable text lists,
-quarantine/ and logs/.
-
-Debug log: %APPDATA%\\RoNModCompatTester\\debug.log
+Debug log: debug.log next to the executable (in the release folder).
 The log rotates at 1 MB and keeps 3 old files. When reporting a bug, send the
 debug.log content to the author.
 

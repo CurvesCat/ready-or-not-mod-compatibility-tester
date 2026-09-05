@@ -47,15 +47,28 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import APP_NAME, SHORT_NAME, VERSION, AUTHOR, default_backup_dir
+from . import (
+    APP_NAME,
+    SHORT_NAME,
+    VERSION,
+    AUTHOR,
+    app_root,
+    default_backup_dir,
+    default_reports_dir,
+)
 from .i18n import set_language, t as _t
 from .locate import detect_game, detect_mod_dir
 from .log import audit, get_logger, install_excepthook, setup_logging
 from .models import AppConfig
 from .safety import list_mod_paks, restore_backup
 
-CONFIG_PATH = Path(os.environ.get("APPDATA", str(Path.home()))) / "RoNModCompatTester"
+CONFIG_PATH = app_root()
 CONFIG_FILE = CONFIG_PATH / "config.json"
+LEGACY_CONFIG_FILE = (
+    Path(os.environ.get("APPDATA", str(Path.home())))
+    / "RoNModCompatTester"
+    / "config.json"
+)
 GITHUB_URL = "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester"
 NEXUS_KEY_URL = "https://www.nexusmods.com/settings/api-keys"
 RAW_LICENSE_URL = (
@@ -305,12 +318,13 @@ def system_uses_dark_theme() -> bool:
 
 
 def _read_cfg() -> dict:
-    if not CONFIG_FILE.is_file():
-        return {}
-    try:
-        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    for path in (CONFIG_FILE, LEGACY_CONFIG_FILE):
+        if path.is_file():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+    return {}
 
 
 def _write_cfg(data: dict) -> None:
@@ -395,9 +409,7 @@ def load_bundled_fonts() -> bool:
 
 def _default_quarantine_dir() -> Path:
     """Quarantine lives next to the executable in release zips."""
-    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
-        return Path(sys.executable).resolve().parent / "quarantine"
-    return Path(__file__).resolve().parent.parent / "quarantine"
+    return app_root() / "quarantine"
 
 
 def _mix_color(a: QColor, b: QColor, amount: float) -> QColor:
@@ -630,7 +642,9 @@ class MainWindow(QMainWindow):
         self.game_root = str(self.cfg_data.get("game_root") or "")
         self.exe_path = str(self.cfg_data.get("exe_path") or "")
         self.mod_dir_path = str(self.cfg_data.get("mod_dir") or "")
-        self.report_dir_path = str(self.cfg_data.get("report_dir") or "")
+        self.report_dir_path = str(
+            self.cfg_data.get("report_dir") or default_reports_dir()
+        )
         self.quarantine_dir = str(
             self.cfg_data.get("quarantine_dir") or _default_quarantine_dir()
         )

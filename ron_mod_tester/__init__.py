@@ -10,12 +10,19 @@ VERSION = "0.3.0"
 AUTHOR = "CurvesCat"
 
 
-def default_backup_dir():
-    """Return the default backup folder: next to the executable when frozen,
-    otherwise the current working directory."""
+def app_root() -> "Path":
+    """Software directory: next to the exe in release zips, repo root in source."""
     import sys
     from pathlib import Path
 
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / "backup"
-    return Path.cwd() / "backup"
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+def default_backup_dir() -> "Path":
+    return app_root() / "backup"
+
+
+def default_reports_dir() -> "Path":
+    return app_root() / "reports"

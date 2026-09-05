@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 from logging.handlers import RotatingFileHandler
-import os
 import sys
 import threading
 from pathlib import Path
 
+from . import app_root
 
-LOG_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / "RoNModCompatTester"
+LOG_DIR = app_root()
 LOG_FILE = LOG_DIR / "debug.log"
 
 

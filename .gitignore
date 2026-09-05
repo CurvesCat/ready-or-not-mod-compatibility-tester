@@ -20,3 +20,4 @@ outputs/
 backup/
 *.log
 manifest.json
+config.json

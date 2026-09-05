@@ -60,6 +60,9 @@ mods.
 - Quarantined unusable mods are stored next to the executable by default
   (`quarantine` folder in the release directory) and the folder can be
   customized in Advanced options.
+- By default all generated data (reports, quarantine, backup, and debug.log)
+  stays inside the software folder; nothing is written to Documents or AppData
+  unless the user chooses a custom location.
 - Ignores game system files such as `pakchunk*-Windows.pak`.
 - Handles unusable mods by moving them to quarantine, renaming them
   `.disabled`, deleting them (with an extra confirmation before the test), or
@@ -84,10 +87,12 @@ Pre-built executables do not need Python. To run from source, Python 3.10+ with
    operate it manually while testing.
 4. Read the result card and open the report folder when finished.
 
-Default report folders:
+Default output folders (all inside the release folder, next to the exe):
 
-- Candidate-folder source: `*_test_reports` next to the candidate folder.
-- Installed source: `RoN_ModCompat_Reports` next to the game directory.
+- `reports` - CSV/JSON reports and per-launch logs
+- `quarantine` - unusable mods
+- `backup` - automatic pre-test backup
+- `debug.log` - debug log next to the exe
 
 ## Run from source
 

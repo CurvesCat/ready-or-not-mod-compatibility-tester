@@ -391,12 +391,12 @@ class App:
         )
 
     def _build_ui(self) -> None:
-        if hasattr(self, "_scroll_canvas"):
-            self._scroll_canvas.destroy()
-            self._scroll_vsb.destroy()
+        if hasattr(self, "_holder"):
+            self._holder.destroy()
         pad = {"padx": 6, "pady": 4}
 
-        holder = ttk.Frame(self.root)
+        self._holder = ttk.Frame(self.root)
+        holder = self._holder
         holder.pack(fill=BOTH, expand=True)
 
         self._scroll_vsb = ttk.Scrollbar(holder, orient="vertical")

@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
     QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -38,7 +37,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QProgressBar,
@@ -50,9 +48,9 @@ from PySide6.QtWidgets import (
 )
 
 from . import APP_NAME, SHORT_NAME, VERSION, AUTHOR, default_backup_dir
-from .i18n import get_language, set_language, t as _t
+from .i18n import set_language, t as _t
 from .locate import detect_game, detect_mod_dir
-from .log import audit, get_logger, install_excepthook, setup_logging, LOG_FILE
+from .log import audit, get_logger, install_excepthook, setup_logging
 from .models import AppConfig
 from .safety import list_mod_paks, restore_backup
 
@@ -1118,7 +1116,7 @@ class MainWindow(QMainWindow):
         title = QLabel(_t("nexus_key_label"))
         title.setObjectName("cardTitle")
         lay.addWidget(title)
-        desc = QLabel(_t("app_desc"))
+        desc = QLabel(_t("nexus_desc"))
         desc.setObjectName("hint")
         desc.setWordWrap(True)
         lay.addWidget(desc)
@@ -1388,7 +1386,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, "game_root_edit"):
             self.game_root_edit.setText(self.game_root)
         self._refresh_folder_hint()
-        self._set_status(f"已检测到游戏：{info.root}")
+        self._set_status(
+            self._local(f"已检测到游戏：{info.root}", f"Game detected: {info.root}")
+        )
 
     def _folder_is_installed(self) -> bool:
         if not self.folder_path:
@@ -1691,10 +1691,15 @@ class MainWindow(QMainWindow):
         self.cta.setText(_t("rerun_test"))
         self.cta.setEnabled(True)
         self._set_status(
-            "完成："
-            f"可用 {summary.get('ok', 0)} / 不可用 {summary.get('fail', 0)} / "
-            f"错误 {summary.get('error', 0)} / 已存在 {summary.get('conflict', 0)} / "
-            f"跳过 {summary.get('skipped', 0)} · 共 {summary.get('total', 0)}",
+            _t(
+                "summary_counts",
+                total=summary.get("total") or len(results),
+                ok=summary.get("ok") or 0,
+                fail=summary.get("fail") or 0,
+                error=summary.get("error") or 0,
+                conflict=summary.get("conflict") or 0,
+                skipped=summary.get("skipped") or 0,
+            ),
             "ok",
         )
 
@@ -1941,7 +1946,7 @@ class MainWindow(QMainWindow):
                     f"\n已移除新增文件 {len(removed)} 个。",
                     f"\nRemoved {len(removed)} new file(s).",
                 )
-            self.log_lines.append("还原备份：" + msg)
+            self.log_lines.append(self._local("还原备份：", "Restore backup: ") + msg)
             QMessageBox.information(self, self._local("还原完成", "Restore complete"), msg)
 
         ok_btn.clicked.connect(_do_restore)
@@ -1953,7 +1958,10 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Nexus API Key",
-            "登录 Nexus → Personal API Key → 生成/复制 → 粘贴到上方输入框并保存。",
+            self._local(
+                "登录 Nexus → Personal API Key → 生成/复制 → 粘贴到上方输入框并保存。",
+                "Log in to Nexus → Personal API Key → create/copy → paste it above and save.",
+            ),
         )
 
     def _open_log_dialog(self) -> None:

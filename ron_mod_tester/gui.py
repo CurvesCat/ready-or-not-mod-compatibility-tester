@@ -481,6 +481,10 @@ class App:
             btns, text=t("start_test"), command=self._start, style="Accent.TButton"
         )
         self.btn_start.pack(side=LEFT)
+        self.btn_v2 = ttk.Button(
+            btns, text=t("v2_test"), command=self._v2_test
+        )
+        self.btn_v2.pack(side=LEFT, padx=(6, 0))
         self.btn_stop = ttk.Button(
             btns, text=t("stop"), command=self._stop, state="disabled"
         )
@@ -749,6 +753,7 @@ class App:
         self.running = True
         self.cancel_event.clear()
         self.btn_start.configure(state="disabled")
+        self.btn_v2.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.status_var.set(t("正在启动测试…"))
@@ -758,6 +763,114 @@ class App:
             target=self._worker_main, args=(config,), daemon=False
         )
         self.worker.start()
+
+    def _v2_test(self) -> None:
+        audit("v2_test")
+        if self.running or self.calibrating:
+            return
+        source = _key_for_label(_source_labels(), self.var_source.get(), "folder")
+        disposition = _key_for_label(
+            _disposition_labels(), self.var_disposition.get(), "quarantine"
+        )
+        mod_folder = self.var_mod_folder.get().strip()
+        if source == "folder" and not mod_folder and not self.mod_files:
+            messagebox.showwarning(
+                t("缺少路径"),
+                t("请先选择 Mod 文件夹，或手动添加至少一个 .pak 文件。"),
+            )
+            return
+        if disposition == "delete":
+            if not messagebox.askyesno(
+                t("确认删除"),
+                t(
+                    "你选择了“删除”不可用 Mod。\n\n"
+                    "测试中判定为不可用的源文件会被永久删除，无法恢复。\n"
+                    "确定继续吗？"
+                ),
+            ):
+                return
+
+        config = AppConfig(
+            mod_folder=Path(mod_folder) if mod_folder else None,
+            mod_files=list(self.mod_files),
+            exclude_files=list(self.exclude_files),
+            game_root=Path(self.var_game_root.get()) if self.var_game_root.get().strip() else None,
+            exe_path=Path(self.var_exe.get()) if self.var_exe.get().strip() else None,
+            mod_dir=Path(self.var_mod_dir.get()) if self.var_mod_dir.get().strip() else None,
+            report_dir=Path(self.var_report_dir.get()) if self.var_report_dir.get().strip() else None,
+            source=source,
+            disposition=disposition,
+            mode=_key_for_label(_mode_labels(), self.var_mode.get(), "isolated"),
+            stable_seconds=max(5, int(self.var_stable.get())),
+            startup_timeout=max(20, int(self.var_startup.get())),
+            menu_hold_seconds=max(1, int(self.var_menu_hold.get())),
+            close_running=bool(self.var_close_running.get()),
+            backup_mods=bool(self.var_backup.get()),
+            backup_dir=Path(self.var_backup_dir.get()) if self.var_backup_dir.get().strip() else None,
+            backup_max_file_mb=max(100, int(self.var_backup_max_file.get())),
+            backup_max_total_mb=max(100, int(self.var_backup_max_total.get())),
+            warmup=bool(self.var_warmup.get()),
+            extra_args=self.var_extra_args.get().strip(),
+        )
+        self._save_config(config)
+
+        tools: dict = {}
+        if CONFIG_FILE.is_file():
+            try:
+                saved = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+                tools = saved.get("v2", {}) or {}
+            except (OSError, json.JSONDecodeError):
+                tools = {}
+        missing = [
+            key
+            for key in ("repak_exe", "dotnet_exe", "uasset_cli_dll")
+            if not str(tools.get(key) or "").strip()
+        ]
+        if missing:
+            messagebox.showwarning(
+                "V2 配置",
+                "V2 测试还需要在 config.json 的 v2 里配置："
+                + ", ".join(missing),
+            )
+            return
+
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self._row_index = 0
+        self.progress["value"] = 0
+        self.progress["maximum"] = 1
+        self.last_summary = None
+        self.btn_report.configure(state="disabled")
+        self.btn_quarantine.configure(state="disabled")
+
+        self.running = True
+        self.cancel_event.clear()
+        self.btn_start.configure(state="disabled")
+        self.btn_v2.configure(state="disabled")
+        self.btn_calibrate.configure(state="disabled")
+        self.btn_stop.configure(state="normal")
+        self.status_var.set("V2 test running...")
+        self._append_log("===== V2 测试 =====")
+        self.worker = threading.Thread(
+            target=self._worker_v2,
+            args=(config, tools),
+            daemon=False,
+        )
+        self.worker.start()
+
+    def _worker_v2(self, config: AppConfig, tools: dict) -> None:
+        from .pipeline.v2_gui import run_v2_gui
+
+        try:
+            run_v2_gui(
+                config,
+                tools,
+                emit=lambda kind, data: self.event_queue.put((kind, data)),
+                cancel_event=self.cancel_event,
+            )
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            get_logger().exception("V2 runner failed")
+            self.event_queue.put(("error", str(exc)))
 
     def _worker_main(self, config: AppConfig) -> None:
         runner = TestRunner(
@@ -797,6 +910,7 @@ class App:
         self.calibrating = True
         self.cancel_event.clear()
         self.btn_start.configure(state="disabled")
+        self.btn_v2.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.status_var.set(t("正在自动测时（会启动一次游戏）…"))
@@ -899,6 +1013,7 @@ class App:
         self.running = False
         self.last_summary = summary
         self.btn_start.configure(state="normal")
+        self.btn_v2.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         self.btn_report.configure(state="normal")
@@ -923,6 +1038,7 @@ class App:
     def _calibrate_done(self, result: dict) -> None:
         self.calibrating = False
         self.btn_start.configure(state="normal")
+        self.btn_v2.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         if not result:
@@ -971,6 +1087,7 @@ class App:
         self.running = False
         self.calibrating = False
         self.btn_start.configure(state="normal")
+        self.btn_v2.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         self.status_var.set(t("出错：") + message)

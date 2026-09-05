@@ -1,5 +1,5 @@
 TUTORIAL_TEXT = """\
-《严阵以待》Mod 兼容性测试器 v0.2.0 - 详细使用教程
+《严阵以待》Mod 兼容性测试器 v0.2.1 - 详细使用教程
 作者：CurvesCat
 
 ────────────────────────────
@@ -110,7 +110,7 @@ TUTORIAL_TEXT = """\
 """
 
 TUTORIAL_TEXT_EN = """\
-Ready or Not Mod Compatibility Tester v0.2.0 - Detailed Tutorial
+Ready or Not Mod Compatibility Tester v0.2.1 - Detailed Tutorial
 Author: CurvesCat
 
 ------------------------------------------------------------

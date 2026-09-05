@@ -6,7 +6,7 @@ monitoring for crashes or errors, and producing a CSV/JSON report.
 
 APP_NAME = "RoN Mod 兼容性测试器"
 SHORT_NAME = "RoNCT"
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 AUTHOR = "CurvesCat"
 
 

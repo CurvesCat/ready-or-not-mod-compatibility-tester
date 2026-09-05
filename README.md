@@ -9,7 +9,7 @@
 ## Download
 
 **One file, everything inside (GUI + CLI + docs + license):**
-[Download ReadyOrNot-ModCompatTester_v0.2.0.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.2.0/ReadyOrNot-ModCompatTester_v0.2.0.zip)
+[Download ReadyOrNot-ModCompatTester_v0.2.1.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.2.1/ReadyOrNot-ModCompatTester_v0.2.1.zip)
 
 Other releases: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
 

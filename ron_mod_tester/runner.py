@@ -271,7 +271,9 @@ class TestRunner:
             default_report = cfg.mod_files[0].parent / "RoN_ModCompat_Reports"
         report_dir = _ensure_dir(cfg.report_dir or default_report)
         log_dir = _ensure_dir(report_dir / "logs")
-        quarantine_dir = _ensure_dir(report_dir / "quarantine")
+        quarantine_dir = _ensure_dir(
+            cfg.quarantine_dir or (report_dir / "quarantine")
+        )
 
         self._mod_dir = mod_dir
         self._exe_path = exe_path

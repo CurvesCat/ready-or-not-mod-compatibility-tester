@@ -395,6 +395,13 @@ def load_bundled_fonts() -> bool:
     return loaded
 
 
+def _default_quarantine_dir() -> Path:
+    """Quarantine lives next to the executable in release zips."""
+    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
+        return Path(sys.executable).resolve().parent / "quarantine"
+    return Path(__file__).resolve().parent.parent / "quarantine"
+
+
 def _mix_color(a: QColor, b: QColor, amount: float) -> QColor:
     amount = max(0.0, min(1.0, amount))
     return QColor(
@@ -626,6 +633,9 @@ class MainWindow(QMainWindow):
         self.exe_path = str(self.cfg_data.get("exe_path") or "")
         self.mod_dir_path = str(self.cfg_data.get("mod_dir") or "")
         self.report_dir_path = str(self.cfg_data.get("report_dir") or "")
+        self.quarantine_dir = str(
+            self.cfg_data.get("quarantine_dir") or _default_quarantine_dir()
+        )
         self.nexus_key = str(self.cfg_data.get("nexus_api_key") or "")
         self.mode = str(self.cfg_data.get("mode") or "isolated")
         self.disposition = str(self.cfg_data.get("disposition") or "quarantine")
@@ -1018,6 +1028,33 @@ class MainWindow(QMainWindow):
         self.warmup_switch = switch_row(_t("warmup"))
         self.warmup_switch.setChecked(self.warmup)
 
+        # 隔离目录：默认 exe 旁，也可自定义
+        q_lab = QLabel(_t("quarantine_dir_label"))
+        q_lab.setObjectName("hint")
+        q_lab.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        grid.addWidget(q_lab, grid.rowCount(), 0)
+        q_row = QHBoxLayout()
+        q_row.setSpacing(8)
+        self.quarantine_edit = QLineEdit()
+        self.quarantine_edit.setObjectName("plainEdit")
+        self.quarantine_edit.setText(self.quarantine_dir)
+        q_row.addWidget(self.quarantine_edit, 1)
+        q_browse = QPushButton(_t("browse"))
+        q_browse.setObjectName("secondary")
+        q_browse.setCursor(Qt.PointingHandCursor)
+        q_browse.clicked.connect(self._browse_quarantine_dir)
+        q_row.addWidget(q_browse)
+        q_default = QPushButton(_t("quarantine_use_exe_dir"))
+        q_default.setObjectName("linkBtn")
+        q_default.setCursor(Qt.PointingHandCursor)
+        q_default.clicked.connect(self._use_default_quarantine_dir)
+        q_row.addWidget(q_default)
+        grid.addLayout(q_row, grid.rowCount() - 1, 1)
+        q_hint = QLabel(_t("quarantine_dir_hint"))
+        q_hint.setObjectName("dim")
+        q_hint.setWordWrap(True)
+        grid.addWidget(q_hint, grid.rowCount(), 0, 1, 2)
+
         # 改动即时同步到内存，切换语言/主题时不会丢失
         self.strategy_seg.currentIndexChanged.connect(
             lambda idx: setattr(
@@ -1047,6 +1084,9 @@ class MainWindow(QMainWindow):
         )
         self.warmup_switch.toggled.connect(
             lambda checked: setattr(self, "warmup", bool(checked))
+        )
+        self.quarantine_edit.textChanged.connect(
+            lambda text: setattr(self, "quarantine_dir", str(text).strip())
         )
 
         # 游戏根目录（仅在 Steam 自动检测失败时需要）
@@ -1242,6 +1282,7 @@ class MainWindow(QMainWindow):
         self.backup_mods = self.backup_switch.isChecked()
         self.warmup = self.warmup_switch.isChecked()
         self.game_root = self.game_root_edit.text().strip()
+        self.quarantine_dir = self.quarantine_edit.text().strip()
 
     def _save_prefs(self, config: AppConfig) -> None:
         _write_cfg(
@@ -1251,6 +1292,7 @@ class MainWindow(QMainWindow):
                 "exe_path": str(config.exe_path) if config.exe_path else "",
                 "mod_dir": str(config.mod_dir) if config.mod_dir else "",
                 "report_dir": str(config.report_dir) if config.report_dir else "",
+                "quarantine_dir": self.quarantine_dir,
                 "mode": config.mode,
                 "stable_seconds": config.stable_seconds,
                 "startup_timeout": config.startup_timeout,
@@ -1288,6 +1330,18 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.game_root_edit.setText(path)
+
+    def _browse_quarantine_dir(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self,
+            _t("quarantine_dir_label"),
+            self.quarantine_edit.text() or str(Path.home()),
+        )
+        if path:
+            self.quarantine_edit.setText(path)
+
+    def _use_default_quarantine_dir(self) -> None:
+        self.quarantine_edit.setText(str(_default_quarantine_dir()))
 
     def _auto_detect_quiet(self) -> None:
         info = self._detect()
@@ -1443,6 +1497,9 @@ class MainWindow(QMainWindow):
             game_root=game_root,
             exe_path=exe_path,
             report_dir=report_dir,
+            quarantine_dir=Path(self.quarantine_dir)
+            if self.quarantine_dir
+            else None,
             source=source,
             mode=self.mode,
             stable_seconds=max(5, self.stable),
@@ -1768,6 +1825,8 @@ class MainWindow(QMainWindow):
                 path = p
         if path is None:
             candidates: list[Path] = []
+            if self.quarantine_dir:
+                candidates.append(Path(self.quarantine_dir))
             if self.folder_path:
                 p = Path(self.folder_path)
                 candidates.append(p.parent / (p.name + "_test_reports") / "quarantine")

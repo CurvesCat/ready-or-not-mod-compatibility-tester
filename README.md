@@ -57,6 +57,9 @@ mods.
   `Saved\Crashes`, and available game logs.
 - Records the Mod directory state before testing and creates an automatic
   backup; **restore backup** is available from the left navigation.
+- Quarantined unusable mods are stored next to the executable by default
+  (`quarantine` folder in the release directory) and the folder can be
+  customized in Advanced options.
 - Ignores game system files such as `pakchunk*-Windows.pak`.
 - Handles unusable mods by moving them to quarantine, renaming them
   `.disabled`, deleting them (with an extra confirmation before the test), or

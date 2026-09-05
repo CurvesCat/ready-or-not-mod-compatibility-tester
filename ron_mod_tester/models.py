@@ -37,6 +37,7 @@ class AppConfig:
     exe_path: Path | None = None
     mod_dir: Path | None = None
     report_dir: Path | None = None
+    quarantine_dir: Path | None = None
     mode: str = "isolated"  # "isolated" | "strict"
     stable_seconds: int = 35
     startup_timeout: int = 120

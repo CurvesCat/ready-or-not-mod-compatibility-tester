@@ -87,6 +87,8 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 八、备份与还原
 ────────────────────────────
 · 每次测试前会自动记录 Mod 目录状态，并按设置创建备份。
+· “高级选项 → 隔离目录”可以自定义隔离区位置；默认放在软件(exe)旁边，
+  不再往“我的文档”里堆文件。想恢复默认就点“设为 exe 旁”。
 · 左侧导航“打开隔离区”可以随时查看被隔离的不可用 Mod；若还没有隔离区，
   会提示隔离区生成的位置（在报告目录的 quarantine 文件夹）。
 · 左侧导航“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
@@ -220,7 +222,8 @@ Click "How to get an API key" to open the Nexus key page.
 ------------------------------------------------------------
 The Mod folder state is recorded before each test and a backup is created
 according to the settings. "Open quarantine" in the left navigation opens the
-folder where unusable mods are moved (created inside the report directory).
+folder where unusable mods are moved (next to the executable by default; set
+it in Advanced options under "Quarantine folder", or click "Use exe folder").
 "Restore backup" copies the backed-up non-system mods back to the game folder.
 "Full restore" also removes non-system mods added after the backup for a true
 rollback.

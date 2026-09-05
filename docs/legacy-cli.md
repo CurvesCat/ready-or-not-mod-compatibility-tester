@@ -1,3 +1,5 @@
+> **Note:** The CLI is retired and is kept only as historical documentation.
+>
 ================================================================
 Ready or Not Mod Compatibility Tester (RoNCT) - Command Line Usage Guide
 ================================================================

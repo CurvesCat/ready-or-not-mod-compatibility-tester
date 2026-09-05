@@ -2,6 +2,15 @@
 
 All notable changes to RoNCT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- CONTRIBUTING, SECURITY, and CODE_OF_CONDUCT guides.
+- GitHub issue templates, pull-request template, Dependabot, and CI workflow.
+- EditorConfig and Git attributes for consistent formatting.
+- Moved the legacy CLI usage document under `docs/`.
+
 ## [0.4.0] - 2026-09-06
 
 ### Added

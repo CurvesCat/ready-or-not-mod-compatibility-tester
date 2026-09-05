@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a problem with RoNCT
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in as much as possible.
+  - type: input
+    id: version
+    attributes:
+      label: RoNCT version
+      description: Version shown in the window title or About dialog
+      placeholder: e.g. 0.4.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: e.g. Windows 11 24H2
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps, including the mod source you selected.
+      placeholder: |
+        1. Select a folder containing mods.
+        2. Click One-click test.
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Include relevant lines from debug.log. Never paste your Nexus API key.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed personal information and API keys from the report
+          required: true

@@ -481,7 +481,7 @@ class App:
         )
         self.btn_start.pack(side=LEFT)
         self.btn_v2 = ttk.Button(
-            btns, text=t("v2_test"), command=self._v2_test
+            btns, text=t("one_click_test"), command=self._v2_test
         )
         self.btn_v2.pack(side=LEFT, padx=(6, 0))
         self.btn_stop = ttk.Button(
@@ -838,8 +838,9 @@ class App:
         ]
         if missing:
             messagebox.showwarning(
-                "V2 配置",
-                "V2 测试还需要在 config.json 的 v2 里配置："
+                t("one_click_test"),
+                "一键测试需要可用的工具组件（repak / UAssetCLI）。"
+                "如果从源码运行，请先在 config.json 的 v2 里配置："
                 + ", ".join(missing),
             )
             return
@@ -860,8 +861,8 @@ class App:
         self.btn_v2.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
-        self.status_var.set("V2 test running...")
-        self._append_log("===== V2 测试 =====")
+        self.status_var.set(t("one_click_test_running"))
+        self._append_log(t("one_click_test_header"))
         self.worker = threading.Thread(
             target=self._worker_v2,
             args=(config, tools),

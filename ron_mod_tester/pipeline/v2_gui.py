@@ -27,7 +27,7 @@ def run_v2_gui(
     uasset_cli = str(tools.get("uasset_cli_dll") or "")
     if not repak_exe or not dotnet_exe or not uasset_cli:
         raise RuntimeError(
-            "V2 需要先在配置中登记 repak_exe、dotnet_exe、uasset_cli_dll。"
+            "一键测试需要可用的工具组件（repak / UAssetCLI / .NET）。"
         )
 
     def log(text: str) -> None:
@@ -41,11 +41,11 @@ def run_v2_gui(
     elif config.mod_dir:
         folder = config.mod_dir
     if folder is None or not folder.is_dir():
-        raise RuntimeError("V2 测试需要一个有效的 Mod 文件夹。")
+        raise RuntimeError("一键测试需要一个有效的 Mod 文件夹。")
 
-    emit("status", "V2 静态扫描：读取 pak 清单与冲突…")
+    emit("status", "正在体检 Mod：读取文件清单与冲突…")
     static = analyze_folder(folder, repak_exe=repak_exe, log=log)
-    emit("status", "V2 依赖解析：分析资产引用（可能需要几分钟）…")
+    emit("status", "正在分析 Mod 依赖（可能需要几分钟）…")
     dependency = scan_dependencies(
         folder,
         repak_exe=repak_exe,
@@ -72,7 +72,7 @@ def run_v2_gui(
         log=log,
     )
 
-    emit("status", f"V2 计划完成：{len(plan.groups)} 组，开始动态测试…")
+    emit("status", f"测试计划完成：{len(plan.groups)} 组，开始游戏测试…")
     runner = TestRunner(config=config, emit=emit, cancel_event=cancel_event)
     summary = runner.run(plan_groups=plan.as_dict()["deploy_groups"])
 

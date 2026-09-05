@@ -1,240 +1,248 @@
 TUTORIAL_TEXT = """\
-《严阵以待》Mod 兼容性测试器 v0.2.1 - 详细使用教程
+《严阵以待》Mod 兼容性测试器 v0.3.0 - 详细使用教程
 作者：CurvesCat
 
 ────────────────────────────
 一、这个工具是做什么的
 ────────────────────────────
-游戏每次更新后，一些旧 .pak Mod 会导致启动崩溃或进游戏后失效。本工具会逐个把 Mod
-放进游戏目录，启动游戏并自动观察：游戏主窗口是否出现、进程是否稳定、是否崩溃/弹错。
-最终生成 CSV / JSON 报告，并把不可用 Mod 隔离、禁用或删除。
+游戏每次更新后，一些旧 .pak Mod 会导致启动崩溃或进游戏后失效。本工具会逐个把
+Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出现、进程是否稳定、是否
+崩溃/弹错。最终生成 CSV / JSON 报告，并把不可用 Mod 隔离或禁用。
 
-推荐用法：点顶部“一键测试”，工具会自动完成静态体检 → 分析 Mod 依赖 →
-按依赖/冲突自动分组启动游戏 → 生成最终报告。普通用户不需要调整任何高级选项；
-需要微调观察时间、备份或处理方式时，再点“展开高级选项”。
+推荐用法：选好文件夹后点蓝色大按钮“一键测试”。工具会自动完成：
+静态体检 → 分析 Mod 依赖 → 按依赖/冲突自动分组启动游戏 → 生成最终报告。
+普通用户不需要调整任何高级选项。
 
-注意：本工具只能判断“启动 / 进主菜单阶段会不会崩”。如果某个 Mod 是进游戏后选武器、
-进地图才失效，而启动阶段正常，工具无法自动发现，需要你手动进游戏验证。
+注意：本工具只能判断“启动 / 进主菜单阶段会不会崩”。如果某个 Mod 是进游戏后
+选武器、进地图才失效，而启动阶段正常，工具无法自动发现，需要你手动进游戏验证。
 
 ────────────────────────────
-二、语言与界面
+二、界面说明
 ────────────────────────────
-· 首次启动会询问选择中文或 English，之后可在顶部“语言 / Language”按钮随时切换。
-· 界面使用苹果风浅色主题；如果窗口被屏幕截断，可以拖大，程序会保留更大默认尺寸。
+· v0.3 使用 Windows 11 风格的 Fluent 界面，由 Qt/PySide6 编写。
+· 界面主题会自动跟随 Windows 的浅色/深色设置，无需手动选择。
+· 左侧导航：一键测试（回到主页）、教程、打开报告目录、运行日志、还原备份、关于；
+  底部按钮可在 中文 / English 之间随时切换。
+· 页面整体可以上下滚动；高级选项默认收起，需要时再展开。
 
 ────────────────────────────
 三、开始前的准备
 ────────────────────────────
 1. 确保 Steam 已登录，且《严阵以待》已安装。
-2. 关闭正在运行的游戏（或勾选“测试前关闭已运行的游戏”）。
-3. 备份你的存档和 Mod。工具本身也会做目录状态清单和备份，但重要数据请自行再备份一份。
+2. 关闭正在运行的游戏（高级选项里也默认勾选“测试前关闭已运行的游戏”）。
+3. 备份你的存档和 Mod。工具本身会做目录状态清单和备份，但重要数据请自行再备份一份。
 
 ────────────────────────────
-四、测试来源怎么选
+四、选择要测试的 Mod
 ────────────────────────────
-· 候选文件夹：测试你自己准备的一批 .pak 文件。
-  - 可以直接选一个文件夹（会递归查找里面的 .pak）。
-  - 也可以点“添加 .pak 文件…”单独选几个文件。
-  - 用“排除文件…”可以把不想测的文件排除掉。
-  - “清空选择”会清掉手动添加和排除的文件。
+主页面第一张卡片是“Mod 文件夹”，支持两种用法：
 
-· 游戏目录内已安装：直接测试当前已经装进游戏 Paks 目录的 Mod。
-  - 工具会先把这些 Mod 移到临时区，逐个测完后再恢复/处理，系统 pakchunk-Windows 不会碰。
+· 候选文件夹：选择你自己准备的一批 .pak 文件所在文件夹（会递归查找子文件夹）。
+  测试时文件会被临时放进游戏目录，测完会自动移除，不会残留在游戏里。
 
-────────────────────────────
-五、自动检测与自动测时
-────────────────────────────
-1. 点“自动检测”会自动找到游戏根目录、可执行文件（ReadyOrNotSteam-Win64-Shipping.exe）
-   和 Mod 安装目录（一般是 ReadyOrNot\\Content\\Paks）；检测不到就手动“浏览…”选择。
-2. 建议先点“自动测时”：它会启动一次游戏、自动点击跳过开场动画，并测量“主窗口出现耗时”
-   与“到主菜单（空闲）耗时”，然后把建议的“稳定观察”自动填好并保存。
+· 游戏目录内已安装：如果你直接选择游戏的 Paks 目录
+  （一般是 ReadyOrNot\\Content\\Paks），工具会识别出来并显示蓝色提示，
+  然后就地测试已安装的 Mod：先移到临时区，测完恢复或按设置处理。
+  系统 pakchunk-Windows 文件永远不会被碰。
+
+找不到游戏时，点“自动检测”；仍找不到就在“高级选项”里手动填写游戏根目录。
 
 ────────────────────────────
-六、测试策略
+五、一键测试会自动做什么
 ────────────────────────────
-· 标准隔离（默认）：逐个 Mod 测试，适合日常排查。
-· 严格深度：逐个测试，观察更久、不提前结束，适合重要 Mod 最终确认。
+1. 静态扫描：读取每个 .pak，找出重复/覆盖冲突。
+2. 依赖分析：解析资源引用，找出“谁依赖谁”。
+3. 自动分组：互相依赖的 Mod 合并成一组启动，冲突的 Mod 分开测。
+4. 启动游戏并按组实测，自动点击跳过开场动画。
+5. 生成报告并把不可用 Mod 移入隔离区（默认）或禁用。
+
+测试过程中会反复弹出游戏窗口，请不要手动操作游戏；想中途停止可点“停止”。
 
 ────────────────────────────
-七、关键设置说明
+六、高级选项说明
 ────────────────────────────
-· 稳定观察：游戏主窗口出现后，保持稳定多少秒就判“可用”。默认 35 秒。
-· 启动超时：等待游戏主窗口出现的最大时间，超过则判“错误 / 卡住”。
-· 主菜单确认：如果日志里检测到主菜单标记，再观察多少秒（此游戏一般不写日志，可忽略）。
-· 附加启动参数：默认 -windowed -nosplash，让游戏以窗口模式启动、跳过启动画面。
-· 测试前预热一次：先不带 Mod 启动一次，验证游戏本体能正常启动，并暖缓存。
-· 备份设置：可设置“测试前备份 Mod 目录”、自定义备份目录、单文件大小上限和总大小上限。
+在“展开高级选项”里可以调整：
+· 测试策略：标准隔离（默认）或严格深度（观察更久）。
+· 稳定观察：游戏主窗口出现后保持稳定多少秒判“可用”，默认 35 秒。
+· 启动超时：等待主窗口出现的最大时间。
+· 主菜单确认：日志检测到主菜单后额外观察的秒数。
+· 附加启动参数：默认 -windowed -nosplash。
+· 不可用 Mod 处理：移入隔离区 / 禁用（.disabled）/ 仅记录。
+· 测试前关闭已运行的游戏、测试前备份、预热一次。
+· 游戏根目录：自动检测失败时手动选择。
+
+这些设置会在下次测试时生效并自动保存。
+
+────────────────────────────
+七、N 网 API Key（可选）
+────────────────────────────
+主页面下方可以保存 Nexus Mods 的 Personal API Key。Key 只保存在本机配置中，
+不会上传；它用于以后的可选联网依赖识别功能。是否填写都不影响一键测试。
+点击“如何获取 API Key”会打开 Nexus 的密钥页面。
 
 ────────────────────────────
 八、备份与还原
 ────────────────────────────
-· 备份默认放在软件所在目录的 backup 文件夹（未自定义时），每次测试覆盖为最新状态。
-· “打开备份目录”可以直接查看备份；“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
-· “还原备份”支持勾选“完全还原”：同时移除备份后新增的非系统 Mod，做到真正回滚。
+· 每次测试前会自动记录 Mod 目录状态，并按设置创建备份。
+· 左侧导航点“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
+· “完全还原”选项还会移除备份后新增的非系统 Mod，做到真正回滚。
+· 测试完成后，“打开报告目录”里能看到隔离区（quarantine）和日志。
 
 ────────────────────────────
-九、不可用 Mod 怎么处理
+九、判定逻辑
 ────────────────────────────
-· 移入隔离区（默认）：把不可用 Mod 移到报告目录的 quarantine 文件夹。
-· 禁用：把文件重命名为 xxx.pak.disabled，游戏不会再加载，但文件保留。
-· 删除：永久删除源文件（开始前会二次确认）。
-· 仅记录：只写报告，不移动/删除。
+1. 把候选 .pak 放进游戏的 Mod 目录（或就地测试已安装的 Mod）。
+2. 启动游戏，等待主窗口（UnrealWindow）出现。
+3. 主窗口出现后自动点击，尽量跳过开场动画，直到本轮观察结束。
+4. 观察期内崩溃/退出/弹错/生成崩溃报告 → 判“不可用”。
+5. 稳定时间内不退出 → 判“可用”。
+6. 每组测完关闭游戏，并恢复/移除本工具移动的文件。
 
 ────────────────────────────
-十、判定逻辑
+十、报告与日志在哪
 ────────────────────────────
-1. 复制候选 .pak 到游戏 Mod 目录。
-2. 启动游戏，等待游戏主窗口（UnrealWindow）出现。
-3. 主窗口出现后自动持续点击，尽量跳过开场动画，直到本轮观察结束。
-4. 主窗口出现后观察“稳定观察”秒；期间崩溃/退出/弹错/生成崩溃报告就判“不可用”。
-5. 稳定时间内不退出，判“可用”。
-6. 每次测完都会关闭游戏，并移除本工具刚添加的文件。
+默认报告输出到：
+· 候选文件夹测试：Mod 文件夹旁边 *_test_reports
+· 游戏目录内已安装：游戏目录旁边 RoN_ModCompat_Reports
+
+里面有 mod_compat_report_*.csv / json、可用/不可用列表、
+quarantine/（隔离区）和 logs/（每次启动的日志）。
+
+调试日志：%APPDATA%\\RoNModCompatTester\\debug.log
+日志按 1MB 轮转、保留 3 份历史，不会无限占空间。遇到 bug 时把 debug.log
+内容发给作者即可排查。
 
 ────────────────────────────
-十一、报告与日志在哪
+十一、注意事项与已知限制
 ────────────────────────────
-默认报告输出到 Mod 文件夹旁边的 *_test_reports 目录：
-· mod_compat_report_*.csv / json
-· 可用_mods.txt / 不可用_mods.txt
-· quarantine/（隔离的 Mod）
-· logs/（每次启动的日志）
-
-调试日志：软件会自动把“用户操作 + 异常堆栈”写入：
-%APPDATA%\\RoNModCompatTester\\debug.log
-日志按 1MB 轮转、保留 3 份历史，自动删除最旧，不会无限占空间。
-遇到 bug 时点“打开日志”，把 debug.log 的内容发给作者即可排查。
-
-────────────────────────────
-十二、注意事项与已知限制
-────────────────────────────
-· 反复启动游戏会持续读写游戏大文件，SSD 占用较高，建议分批测试。
-· 游戏不写标准 UE 日志，无法据此判断“进游戏后失效”的 Mod。
-· 主菜单标记可能识别不到，此时自动回退到固定稳定观察。
+· 反复启动游戏会持续读写游戏文件，SSD 占用较高，建议分批测试。
+· 游戏不写标准 UE 日志，无法判断“进游戏后失效”的 Mod。
 · 请自行备份重要数据，使用风险自负。
 """
 
 TUTORIAL_TEXT_EN = """\
-Ready or Not Mod Compatibility Tester v0.2.1 - Detailed Tutorial
+Ready or Not Mod Compatibility Tester v0.3.0 - Detailed Tutorial
 Author: CurvesCat
 
 ------------------------------------------------------------
 1. What this tool does
 ------------------------------------------------------------
 After each game update, some old .pak mods may crash at startup or break
-in-game. This tool copies each mod into the game folder one by one, launches
-the game, and watches whether the game window appears, stays stable, or
-crashes. It then writes CSV / JSON reports and quarantines, disables, or
-deletes unusable mods.
+in-game. This tool deploys each mod into the game folder, launches the game,
+and watches whether the main window appears, the process stays stable, or it
+crashes. It then writes CSV / JSON reports and quarantines or disables
+unusable mods.
 
-Recommended usage: click "One-click test" at the top. The tool will run a static
-scan, analyze mod dependencies, group dependent/conflicting mods, launch the
-game per group, and write a final report. Normal users do not need to touch the
-advanced options; expand them only when you want to fine-tune timing, backups,
-or how unusable mods are handled.
+Recommended usage: choose a Mod folder and click the big blue "One-click test"
+button. The tool runs a static scan, analyzes dependencies, groups mods by
+dependency/conflict, launches the game per group, and writes a final report.
+Normal users do not need to touch the advanced options.
 
 Note: it can only detect "startup / main-menu stage crashes". If a mod only
-breaks after entering a mission or equipping a weapon, this tool cannot detect
-that automatically; you need to test it manually in-game.
+breaks after entering a mission or equipping a weapon, it cannot be detected
+automatically; test it manually in-game.
 
 ------------------------------------------------------------
-2. Language and UI
+2. Interface
 ------------------------------------------------------------
-The language is asked on first launch and can be switched any time from the
-"Language / 语言" button at the top. The UI uses a clean Apple-style theme;
-if your screen clips the window, enlarge it - the default window is already
-sized to show the progress bar and lower panels.
+The v0.3 GUI uses a Windows 11 Fluent-style interface built with Qt/PySide6.
+The theme follows the Windows light/dark setting automatically.
+Left navigation: One-click test (home), Tutorial, Open report folder,
+Run log, Restore backup, About. The button at the bottom switches between
+Chinese and English at any time. The whole page scrolls; advanced options are
+collapsed by default.
 
 ------------------------------------------------------------
 3. Before you start
 ------------------------------------------------------------
 1. Make sure Steam is logged in and Ready or Not is installed.
-2. Close any running game (or enable "Close running game before testing").
+2. Close any running game (or keep "Close running game before testing" enabled).
 3. Back up your saves and mods. The tool also creates a manifest and backup.
 
 ------------------------------------------------------------
-4. Test source
+4. Choosing the mods to test
 ------------------------------------------------------------
-Candidate folder: test a batch of .pak files you prepared.
-  - Choose a folder (it searches subfolders for .pak files).
-  - Or click "Add .pak files..." to select individual files.
-  - Use "Exclude files..." to skip files you do not want to test.
-  - "Clear selection" resets the added/excluded files.
+Candidate folder: choose a folder containing .pak files (subfolders are
+searched). Files are temporarily deployed into the game folder during tests
+and removed afterwards.
 
-Installed in game folder: test mods already placed in the game Paks folder.
-  - The tool moves them to a temporary area, tests them, then restores or
-    handles them. System pakchunk-Windows files are never touched.
+Installed in game folder: if you select the game's Paks folder directly
+(usually ReadyOrNot\\Content\\Paks), the tool shows a blue notice and tests
+installed mods in place: they are moved to a temporary area, tested, then
+restored or handled. System pakchunk-Windows files are never touched.
 
-------------------------------------------------------------
-5. Auto detect and Auto timing
-------------------------------------------------------------
-1. Click "Auto detect" to find the game root, executable, and Mod folder
-   (usually ReadyOrNot\\Content\\Paks). If detection fails, pick them manually.
-2. It is recommended to click "Auto timing" first: it launches the game once,
-   auto-clicks to skip the intro, measures the window-appearance time and the
-   time until the menu (idle) is reached, then fills and saves the suggested
-   "Stable watch" value.
+If the game is not detected, click "Auto detect". If that still fails, set the
+game root manually under "Advanced options".
 
 ------------------------------------------------------------
-6. Test strategy
+5. What one-click testing does
 ------------------------------------------------------------
-Standard isolated (default): test one mod at a time.
-Strict deep: test one mod at a time with a longer observation window.
+1. Static scan: reads every .pak and finds duplicate/overwrite conflicts.
+2. Dependency analysis: parses asset references to find "who needs whom".
+3. Automatic planning: interdependent mods launch together; conflicts stay
+   isolated.
+4. Real game launches per group, auto-clicking to skip the intro.
+5. Report generation; unusable mods are quarantined (default) or disabled.
+
+The game window opens several times. Do not operate the game manually while
+testing. Click "Stop" to cancel.
 
 ------------------------------------------------------------
-7. Key settings
+6. Advanced options
 ------------------------------------------------------------
-Stable watch: how long the game window must stay stable to be "usable" (35 s).
-Startup timeout: how long to wait for the game window before "error".
-Menu confirm: extra seconds after a menu marker is detected (rarely used).
-Extra launch args: default -windowed -nosplash.
-Warm up once: launch once without mods to verify the base game and warm caches.
-Backup settings: enable pre-test backup, choose the backup folder, and set
-the single-file / total size limits.
+Under "Advanced options" you can adjust: test strategy (standard isolated or
+strict deep), stable watch seconds, startup timeout, menu confirm seconds,
+extra launch arguments (default -windowed -nosplash), handling of unusable
+mods (quarantine / disable / record only), closing a running game before
+testing, pre-test backup, warm-up launch, and the game root folder.
+Changes are saved and apply to the next test.
+
+------------------------------------------------------------
+7. Nexus API key (optional)
+------------------------------------------------------------
+You can save a Nexus Mods Personal API key at the bottom of the page. The key
+is stored only on this computer and is used by the optional online dependency
+feature; whether you fill it in or not, one-click testing works normally.
+Click "How to get an API key" to open the Nexus key page.
 
 ------------------------------------------------------------
 8. Backup and restore
 ------------------------------------------------------------
-By default the backup is stored in a "backup" folder next to the executable
-(or your custom folder) and is overwritten on each run. "Open backup folder"
-shows the backup; "Restore backup" copies the non-system mods back to the game
-folder. Check "Full restore" to also remove non-system mods added after the
-backup for a true rollback.
+The Mod folder state is recorded before each test and a backup is created
+according to the settings. "Restore backup" in the left navigation copies the
+backed-up non-system mods back to the game folder. "Full restore" also removes
+non-system mods added after the backup for a true rollback.
 
 ------------------------------------------------------------
-9. Handling unusable mods
+9. Verdict logic
 ------------------------------------------------------------
-Move to quarantine (default), Disable (.disabled rename), Delete, or Record only.
+1. A candidate .pak is deployed into the game Mod folder (or installed mods
+   are tested in place).
+2. The game is launched and the main window (UnrealWindow) is awaited.
+3. The tool auto-clicks to skip the intro until the observation ends.
+4. Crash / exit / error dialog / new crash report during the window =
+   unusable.
+5. Staying stable for the configured time = usable.
+6. The game is closed after each group and moved files are restored/removed.
 
 ------------------------------------------------------------
-10. Verdict logic
+10. Reports and logs
 ------------------------------------------------------------
-1. Copy a candidate .pak into the game Mod folder.
-2. Launch the game and wait for its main window (UnrealWindow).
-3. The tool keeps clicking to skip the intro until the observation ends.
-4. Observe for "Stable watch" seconds; crash / exit / error dialog / new crash
-   report = unusable.
-5. If it stays stable, it is marked usable.
-6. The game is closed and the tool's added file is removed after each test.
+Default report locations:
+- Candidate-folder tests: *_test_reports next to the Mod folder.
+- Installed tests: RoN_ModCompat_Reports next to the game directory.
+
+They contain mod_compat_report_*.csv/json, usable/unusable text lists,
+quarantine/ and logs/.
+
+Debug log: %APPDATA%\\RoNModCompatTester\\debug.log
+The log rotates at 1 MB and keeps 3 old files. When reporting a bug, send the
+debug.log content to the author.
 
 ------------------------------------------------------------
-11. Reports and logs
-------------------------------------------------------------
-Reports go to *_test_reports next to the Mod folder by default:
-mod_compat_report_*.csv/json, usable_mods.txt, unusable_mods.txt,
-quarantine/, logs/.
-
-Debug log: the program automatically records user actions and exception
-stack traces to:
-%APPDATA%\\RoNModCompatTester\\debug.log
-The log rotates at 1 MB and keeps 3 old files, automatically deleting the
-oldest, so it never grows without bound. When reporting a bug, click
-"Open log" and send the debug.log content to the author.
-
-------------------------------------------------------------
-12. Notes and limitations
+11. Notes and limitations
 ------------------------------------------------------------
 Repeated game launches read large game files (high SSD usage); test in batches.
 The game does not write a standard UE log, so in-game breakage cannot be seen.
-Menu markers may not be detected; the tool falls back to the stable window.
 Back up important data; use at your own risk.
 """

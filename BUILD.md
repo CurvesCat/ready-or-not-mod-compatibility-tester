@@ -1,16 +1,26 @@
 # Building the Windows executable
 
-The GUI uses the standard-library `tkinter`, and process monitoring uses
-`psutil`. There are no other runtime dependencies.
+The v0.3 GUI is built with **PySide6 (Qt for Python)** and process monitoring
+uses `psutil`. There is no tkinter dependency anymore.
 
 ```powershell
-python -m pip install psutil pyinstaller
+python -m pip install -r requirements.txt pyinstaller
 
-# GUI executable (windowed)
-python -m PyInstaller --onefile --windowed --icon assets\icon.ico --name ReadyOrNot-ModCompatTester run_gui.py
-
-# CLI executable (console)
-python -m PyInstaller --onefile --console --name ReadyOrNot-ModCompatTester-cli run_cli.py
+# GUI executable (windowed, one file)
+python -m PyInstaller --noconfirm --clean --onefile --windowed ^
+  --icon assets\icon.ico ^
+  --name ReadyOrNot-ModCompatTester ^
+  --hidden-import ron_mod_tester.pipeline.v2_gui ^
+  run_gui.py
 ```
 
-The output executables are placed in `dist/`.
+The output executable is placed in `dist/`.
+
+For a release zip, place the following next to the executable:
+
+- `tools\repak\repak.exe`
+- `tools\dotnet\dotnet.exe`
+- `tools\uassetcli\UAssetCLI.dll`
+
+The legacy CLI source (`run_cli.py`, `ron_mod_tester/cli.py`) is kept as history
+but is not built or shipped with releases.

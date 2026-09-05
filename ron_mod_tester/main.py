@@ -8,9 +8,9 @@ def main() -> int:
         from .cli import main as cli_main
 
         return cli_main()
-    from .gui import main as gui_main
+    from .gui_qt import main as qt_main
 
-    return gui_main()
+    return qt_main()
 
 
 if __name__ == "__main__":

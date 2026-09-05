@@ -8,15 +8,13 @@
 
 ## Download
 
-**One file, everything inside (GUI + docs + license):**
-[Download ReadyOrNot-ModCompatTester_v0.2.1.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.2.1/ReadyOrNot-ModCompatTester_v0.2.1.zip)
-
-Other releases: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
+**One file, everything inside (GUI + tools + docs):**
+Latest release: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
 
 A Windows desktop tool that checks whether each `.pak` mod still works after a
-*Ready or Not* game update. It first scans the mods without launching the game,
-then starts the game in dependency-aware groups, watches the window and
-process, and produces CSV / JSON reports while quarantining or removing broken
+*Ready or Not* game update. It scans mods statically, analyzes cross-mod
+dependencies, then starts the game in dependency-aware groups, watches the
+window and process, and produces CSV / JSON reports while quarantining broken
 mods.
 
 > This tool only detects **startup / main-menu stage crashes**. If a mod breaks
@@ -24,40 +22,41 @@ mods.
 > be detected automatically because *Ready or Not* does not write a standard
 > Unreal Engine log.
 
+## GUI (v0.3)
+
+- **Windows 11 Fluent-style interface** built with PySide6/Qt. It no longer uses
+  the old tkinter interface.
+- The UI theme **follows the Windows light/dark setting automatically**.
+- Simplified **one-click workflow**: choose a Mod folder → click the primary
+  button → read the result. No technical knowledge required.
+- The **advanced options** are collapsed by default (strategy, timings, launch
+  arguments, handling of unusable mods, game root).
+- Nexus Mods API key can be saved locally for optional dependency lookups.
+- Chinese / English UI switchable at any time from the left navigation.
+
 ## Features
 
 - Two test sources:
-  - **Candidate folder** - test a folder (or hand-picked files) of `.pak` mods.
-  - **Installed in game folder** - test mods already placed in the game `Paks`.
-- Add individual `.pak` files, exclude selected files, or clear the selection.
-- Two strategies:
-  - **Standard isolated** - test one mod at a time.
-  - **Strict deep** - test one mod at a time with a longer observation window.
-- Auto-detect the game root, executable, and mod install folder.
-- **Auto timing** - launch the game once to measure startup time and suggest the
-  stable-observation value.
-- Auto-click to skip the intro animation while the game window opens.
+  - **Candidate folder** - test a folder of `.pak` mods.
+  - **Installed in game folder** - when the selected folder is the game `Paks`
+    directory, RoNCT automatically tests the installed mods in place and
+    restores them afterwards.
+- Auto-detect the game root, executable, and Mod install folder.
+- **Smart one-click pipeline**:
+  - Static scan for duplicate / overwrite conflicts.
+  - Dependency analysis of cooked Unreal assets.
+  - Automatic planning: interdependent mods launch together, conflicting mods
+    stay isolated.
+  - Real game launches with auto-skip of the intro and crash detection.
 - Detects crashes via process exit, error dialogs, crash dumps under
   `Saved\Crashes`, and available game logs.
-- Records the mod folder state before testing, creates an optional backup, and
-  supports one-click **restore backup**.
+- Records the Mod directory state before testing and creates an automatic
+  backup; **restore backup** is available from the left navigation.
 - Ignores game system files such as `pakchunk*-Windows.pak`.
-- Handles unusable mods by moving them to quarantine, renaming them `.disabled`,
-  deleting them, or recording only.
-- Reports in CSV / JSON plus `usable_mods.txt` / `unusable_mods.txt`.
-- English and Chinese UI. The language is selected on first launch and can be
-  changed later.
-- Configurable backup folder and backup size limits.
-
-## Smart testing
-
-- **Static scan** reads every `.pak` and reports duplicate/overwrite conflicts
-  without launching the game.
-- **Dependency analysis** parses cooked Unreal assets to find cross-mod
-  references (for example "BluePrints requires Assets").
-- **Automatic deploy planning** groups interdependent mods into one launch and
-  keeps conflicting mods isolated.
-- The full pipeline runs from the **One-click test** button in the GUI.
+- Handles unusable mods by moving them to quarantine, renaming them
+  `.disabled`, or recording only (delete is intentionally not exposed in the
+  simplified GUI).
+- Reports in CSV / JSON plus usable/unusable text lists.
 
 ## Requirements
 
@@ -65,29 +64,32 @@ mods.
 - Steam version of *Ready or Not* installed
 - Steam logged in
 
-Pre-built executables do not need Python. To run from source, Python 3.10+ and
-`psutil` are required.
+Pre-built executables do not need Python. To run from source, Python 3.10+ with
+`psutil` and `PySide6` are required.
 
 ## Quick start (GUI)
 
 1. Run `ReadyOrNot-ModCompatTester.exe`.
-2. Choose the interface language.
-3. Click *Browse* and choose a folder containing `.pak` files.
-4. Click **One-click test**.
-
-Do not operate the game manually while the tool is running.
+2. Click **Browse…** and choose a folder containing `.pak` files (or select the
+   game `Paks` folder to test the mods already installed there).
+3. Click **One-click test** and wait. The game will open several times - do not
+   operate it manually while testing.
+4. Read the result card and open the report folder when finished.
 
 Default report folders:
 
-- `folder` source: `*_test_reports` next to the candidate folder.
-- `installed` source: `RoN_ModCompat_Reports` next to the game directory.
+- Candidate-folder source: `*_test_reports` next to the candidate folder.
+- Installed source: `RoN_ModCompat_Reports` next to the game directory.
 
 ## Run from source
 
 ```powershell
-python -m pip install psutil
+python -m pip install -r requirements.txt
 python -m ron_mod_tester
 ```
+
+The legacy CLI entry point (`run_cli.py`, `ron_mod_tester/cli.py`) is kept only
+as historical code and is no longer maintained or shipped in releases.
 
 ## Build the executable
 

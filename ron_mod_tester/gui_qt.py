@@ -64,6 +64,7 @@ RAW_LICENSE_URL = (
     "https://raw.githubusercontent.com/CurvesCat/"
     "ready-or-not-mod-compatibility-tester/main/LICENSE"
 )
+DISPOSITIONS = ["quarantine", "disable", "delete", "record"]
 
 THEME_LIGHT = {
     "bg": "#F3F3F3",
@@ -744,6 +745,7 @@ class MainWindow(QMainWindow):
         for text, cb in (
             (_t("tutorial"), self._open_tutorial),
             (_t("open_report"), self._open_report_folder),
+            (_t("open_quarantine"), self._open_quarantine),
             (_t("view_log"), self._open_log_dialog),
             (_t("restore_backup"), self._restore_backup),
             (_t("about"), self._open_about),
@@ -968,17 +970,30 @@ class MainWindow(QMainWindow):
         self.menu_spin.setValue(self.menu_hold)
         labelled(_t("menu_hold"), self.menu_spin)
 
-        self.disposition_combo = QComboBox()
-        for value in ("quarantine", "disable", "record"):
-            label = {
-                "quarantine": _t("disp_quarantine"),
-                "disable": _t("disp_disable"),
-                "record": _t("disp_record"),
-            }[value]
-            self.disposition_combo.addItem(label, value)
-        index = self.disposition_combo.findData(self.disposition)
-        self.disposition_combo.setCurrentIndex(max(0, index))
-        labelled(_t("unusable_handling"), self.disposition_combo)
+        # 不可用 Mod 处理：Windows 11 分段选择
+        disp_lab = QLabel(_t("unusable_handling"))
+        disp_lab.setObjectName("hint")
+        disp_lab.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        grid.addWidget(disp_lab, grid.rowCount(), 0)
+        self.disposition_seg = SegmentedControl(
+            [
+                _t("disp_short_quarantine"),
+                _t("disp_short_disable"),
+                _t("disp_short_delete"),
+                _t("disp_short_record"),
+            ],
+            dark=self.dark,
+        )
+        index = DISPOSITIONS.index(self.disposition) if self.disposition in DISPOSITIONS else 0
+        self.disposition_seg.setCurrentIndex(index, animate=False)
+        disp_row = QHBoxLayout()
+        disp_row.addWidget(self.disposition_seg)
+        disp_row.addStretch()
+        grid.addLayout(disp_row, grid.rowCount() - 1, 1)
+        disp_help = QLabel(_t("disposition_help"))
+        disp_help.setObjectName("dim")
+        disp_help.setWordWrap(True)
+        grid.addWidget(disp_help, grid.rowCount(), 0, 1, 2)
 
         self.extra_edit = QLineEdit()
         self.extra_edit.setObjectName("plainEdit")
@@ -1016,11 +1031,9 @@ class MainWindow(QMainWindow):
         self.menu_spin.valueChanged.connect(
             lambda v: setattr(self, "menu_hold", int(v))
         )
-        self.disposition_combo.currentIndexChanged.connect(
-            lambda _i: setattr(
-                self,
-                "disposition",
-                str(self.disposition_combo.currentData() or "quarantine"),
+        self.disposition_seg.currentIndexChanged.connect(
+            lambda idx: setattr(
+                self, "disposition", DISPOSITIONS[max(0, min(len(DISPOSITIONS) - 1, idx))]
             )
         )
         self.extra_edit.textChanged.connect(
@@ -1222,7 +1235,8 @@ class MainWindow(QMainWindow):
         self.stable = int(self.stable_spin.value())
         self.startup = int(self.startup_spin.value())
         self.menu_hold = int(self.menu_spin.value())
-        self.disposition = str(self.disposition_combo.currentData() or "quarantine")
+        idx = self.disposition_seg.currentIndex()
+        self.disposition = DISPOSITIONS[max(0, min(len(DISPOSITIONS) - 1, idx))]
         self.extra_args = self.extra_edit.text().strip()
         self.close_running = self.close_switch.isChecked()
         self.backup_mods = self.backup_switch.isChecked()
@@ -1459,6 +1473,16 @@ class MainWindow(QMainWindow):
                 self, _t("one_click_test"), _t("tool_missing_msg")
             )
             return
+        if config.disposition == "delete":
+            answer = QMessageBox.warning(
+                self,
+                _t("确认删除"),
+                _t("confirm_delete_text"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
         self._save_prefs(config)
         self._save_current_options()
 
@@ -1737,15 +1761,29 @@ class MainWindow(QMainWindow):
         os.startfile(str(path))  # type: ignore[attr-defined]
 
     def _open_quarantine(self) -> None:
-        if not self.summary or not self.summary.get("quarantine_dir"):
+        path: Path | None = None
+        if self.summary and self.summary.get("quarantine_dir"):
+            p = Path(str(self.summary["quarantine_dir"]))
+            if p.is_dir():
+                path = p
+        if path is None:
+            candidates: list[Path] = []
+            if self.folder_path:
+                p = Path(self.folder_path)
+                candidates.append(p.parent / (p.name + "_test_reports") / "quarantine")
+            if self.game_root:
+                candidates.append(
+                    Path(self.game_root).parent / "RoN_ModCompat_Reports" / "quarantine"
+                )
+            if self.report_dir_path:
+                candidates.append(Path(self.report_dir_path) / "quarantine")
+            for candidate in candidates:
+                if candidate.is_dir():
+                    path = candidate
+                    break
+        if path is None or not path.is_dir():
             QMessageBox.information(
-                self, _t("open_quarantine"), _t("results_empty")
-            )
-            return
-        path = Path(str(self.summary["quarantine_dir"]))
-        if not path.is_dir():
-            QMessageBox.information(
-                self, _t("open_quarantine"), _t("results_empty")
+                self, _t("open_quarantine"), _t("open_quarantine_empty")
             )
             return
         os.startfile(str(path))  # type: ignore[attr-defined]

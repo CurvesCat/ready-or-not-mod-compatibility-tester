@@ -59,8 +59,8 @@ mods.
   backup; **restore backup** is available from the left navigation.
 - Ignores game system files such as `pakchunk*-Windows.pak`.
 - Handles unusable mods by moving them to quarantine, renaming them
-  `.disabled`, or recording only (delete is intentionally not exposed in the
-  simplified GUI).
+  `.disabled`, deleting them (with an extra confirmation before the test), or
+  recording only.
 - Reports in CSV / JSON plus usable/unusable text lists.
 
 ## Requirements

@@ -127,6 +127,13 @@ ZH: dict[str, str] = {
     "theme_light_name": "浅色",
     "theme_dark_name": "深色",
     "summary_counts": "共 {total} 个测试项 · 可用 {ok} / 不可用 {fail} / 错误 {error} / 已存在 {conflict} / 跳过 {skipped}",
+    "disp_short_quarantine": "隔离",
+    "disp_short_disable": "禁用",
+    "disp_short_delete": "删除",
+    "disp_short_record": "仅记录",
+    "disposition_help": "隔离：移到报告目录 quarantine；禁用：改名 .disabled；删除：永久删除不可用源文件（开始前会再次确认）；仅记录：只写报告不动文件。",
+    "open_quarantine_empty": "还没有隔离区。测试判定某个 Mod 不可用时，文件会自动出现在报告目录的 quarantine 文件夹里；届时点左侧“打开隔离区”即可打开。",
+    "confirm_delete_text": "你选择了“删除”作为不可用 Mod 的处理方式。\n\n测试中判定为不可用的源文件会被永久删除，无法恢复。\n确定继续吗？",
 }
 
 EN: dict[str, str] = {
@@ -255,6 +262,13 @@ EN: dict[str, str] = {
     "theme_light_name": "Light",
     "theme_dark_name": "Dark",
     "summary_counts": "{total} item(s) · OK {ok} / Unusable {fail} / Errors {error} / Exists {conflict} / Skipped {skipped}",
+    "disp_short_quarantine": "Quarantine",
+    "disp_short_disable": "Disable",
+    "disp_short_delete": "Delete",
+    "disp_short_record": "Record only",
+    "disposition_help": "Quarantine: move to the report's quarantine folder. Disable: rename to .disabled. Delete: permanently remove unusable source files (confirmed before testing). Record only: write reports without touching files.",
+    "open_quarantine_empty": "No quarantine folder yet. When a mod is marked unusable, the file is moved to the quarantine folder inside the report directory; click \"Open quarantine\" on the left then.",
+    "confirm_delete_text": "You selected Delete as the handling for unusable mods.\n\nFiles judged unusable will be permanently deleted and cannot be recovered.\nContinue?",
     "选择包含 .pak Mod 文件的文件夹": "Choose a folder containing .pak mods",
     "选择游戏根目录（包含 ReadyOrNot 文件夹）": "Choose the game root (folder containing ReadyOrNot)",
     "选择游戏可执行文件": "Choose the game executable",

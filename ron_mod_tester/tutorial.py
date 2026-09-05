@@ -69,7 +69,8 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 · 启动超时：等待主窗口出现的最大时间。
 · 主菜单确认：日志检测到主菜单后额外观察的秒数。
 · 附加启动参数：默认 -windowed -nosplash。
-· 不可用 Mod 处理：移入隔离区 / 禁用（.disabled）/ 仅记录。
+· 不可用 Mod 处理：隔离 / 禁用（.disabled）/ 删除 / 仅记录。
+  选“删除”时，测试开始前会再次弹出确认，被判定不可用的源文件会永久删除。
 · 测试前关闭已运行的游戏、测试前备份、预热一次。
 · 游戏根目录：自动检测失败时手动选择。
 
@@ -86,7 +87,9 @@ Mod 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出�
 八、备份与还原
 ────────────────────────────
 · 每次测试前会自动记录 Mod 目录状态，并按设置创建备份。
-· 左侧导航点“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
+· 左侧导航“打开隔离区”可以随时查看被隔离的不可用 Mod；若还没有隔离区，
+  会提示隔离区生成的位置（在报告目录的 quarantine 文件夹）。
+· 左侧导航“还原备份”可以把备份里的非系统 Mod 还原回游戏目录。
 · “完全还原”选项还会移除备份后新增的非系统 Mod，做到真正回滚。
 · 测试完成后，“打开报告目录”里能看到隔离区（quarantine）和日志。
 
@@ -198,8 +201,10 @@ testing. Click "Stop" to cancel.
 Under "Advanced options" you can adjust: test strategy (standard isolated or
 strict deep), stable watch seconds, startup timeout, menu confirm seconds,
 extra launch arguments (default -windowed -nosplash), handling of unusable
-mods (quarantine / disable / record only), closing a running game before
-testing, pre-test backup, warm-up launch, and the game root folder.
+mods (quarantine / disable / delete / record only; delete asks for extra
+confirmation and permanently removes unusable source files), closing a
+running game before testing, pre-test backup, warm-up launch, and the game
+root folder.
 Changes are saved and apply to the next test.
 
 ------------------------------------------------------------
@@ -214,9 +219,11 @@ Click "How to get an API key" to open the Nexus key page.
 8. Backup and restore
 ------------------------------------------------------------
 The Mod folder state is recorded before each test and a backup is created
-according to the settings. "Restore backup" in the left navigation copies the
-backed-up non-system mods back to the game folder. "Full restore" also removes
-non-system mods added after the backup for a true rollback.
+according to the settings. "Open quarantine" in the left navigation opens the
+folder where unusable mods are moved (created inside the report directory).
+"Restore backup" copies the backed-up non-system mods back to the game folder.
+"Full restore" also removes non-system mods added after the backup for a true
+rollback.
 
 ------------------------------------------------------------
 9. Verdict logic

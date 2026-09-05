@@ -14,8 +14,8 @@ Security fixes are applied to the latest stable release and to `main`.
 Please do **not** open a public issue for security problems.
 
 Use GitHub's private vulnerability reporting on the repository's **Security**
-tab, or contact the maintainer privately through GitHub. When reporting,
-include:
+tab, or email the maintainer directly at
+[ronct.dev@icloud.com](mailto:ronct.dev@icloud.com). When reporting, include:
 
 - Affected RoNCT version and Windows version
 - A minimal description of the issue

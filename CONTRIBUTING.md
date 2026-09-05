@@ -3,6 +3,9 @@
 Thanks for your interest in improving RoNCT. Bug reports, feature requests,
 documentation fixes, and code contributions are all welcome.
 
+Questions or maintainer contact:
+[ronct.dev@icloud.com](mailto:ronct.dev@icloud.com).
+
 ## Before you start
 
 - Check the [README](README.md) and [CHANGELOG](CHANGELOG.md) first.

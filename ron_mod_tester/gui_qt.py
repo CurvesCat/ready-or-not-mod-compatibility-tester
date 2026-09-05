@@ -87,6 +87,7 @@ LEGACY_CONFIG_FILE = (
 )
 GITHUB_URL = "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester"
 NEXUS_KEY_URL = "https://www.nexusmods.com/settings/api-keys"
+CONTACT_EMAIL = "ronct.dev@icloud.com"
 RAW_LICENSE_URL = (
     "https://raw.githubusercontent.com/CurvesCat/"
     "ready-or-not-mod-compatibility-tester/main/LICENSE"
@@ -3985,9 +3986,12 @@ class MainWindow(QMainWindow):
             f"<h2>{SHORT_NAME} v{VERSION}</h2>"
             f"<p>{APP_NAME}</p>"
             f"<p>by {AUTHOR} · Ready or Not</p>"
+            f"<p>{_t('about_contact')}: "
+            f"<a href=\"mailto:{CONTACT_EMAIL}\">{CONTACT_EMAIL}</a></p>"
             f"<p>{_t('license_title')}</p>"
         )
         info.setWordWrap(True)
+        info.setOpenExternalLinks(True)
         lay.addWidget(info)
         row = QHBoxLayout()
         github = QPushButton(_t("open_github"))

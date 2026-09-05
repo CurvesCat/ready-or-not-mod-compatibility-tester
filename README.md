@@ -40,6 +40,8 @@ window and process, and produces CSV / JSON reports.
 The GUI is a Windows 11 Fluent-style interface with a light/dark/auto theme,
 English and Chinese UI, and no technical setup required for normal use.
 
+Maintainer contact: [ronct.dev@icloud.com](mailto:ronct.dev@icloud.com)
+
 ## Features
 
 - **Windows 11 Fluent-style GUI** built with PySide6/Qt.

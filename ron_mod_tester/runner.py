@@ -212,7 +212,10 @@ class TestRunner:
         return [p for p in files if p.resolve() not in excluded]
 
     # --------------------------------------------------------------- run
-    def run(self) -> dict[str, Any]:
+    def run(
+        self,
+        plan_groups: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         cfg = self.config
         emit = self.emit
         emit("status", "正在初始化…")
@@ -379,7 +382,10 @@ class TestRunner:
                     )
                 self._log("预热完成。")
 
-            self._run_isolated(items)
+            if plan_groups:
+                self._run_plan_groups(items, plan_groups)
+            else:
+                self._run_isolated(items)
         finally:
             if self._current_session:
                 self._current_session.cleanup()
@@ -546,6 +552,105 @@ class TestRunner:
             menu_reached=result.menu_reached,
             crash_dirs=result.crash_dirs,
         )
+
+    # ------------------------------------------------------- v2 plan strategy
+    def _run_plan_groups(
+        self,
+        items: list[DeployItem],
+        plan_groups: list[dict[str, Any]],
+    ) -> None:
+        """Execute deploy groups from the V2 planner using the existing engine."""
+        items_by_name = {item.source.name: item for item in items}
+        for index, group in enumerate(plan_groups, start=1):
+            if self._cancelled():
+                self._log("已请求停止，未完成的组标记为跳过。")
+                return
+            group_mods = [str(name) for name in group.get("mods", [])]
+            units = [
+                items_by_name[name]
+                for name in group_mods
+                if name in items_by_name
+            ]
+            if not units:
+                continue
+            missing = [name for name in group_mods if name not in items_by_name]
+            if missing:
+                self._log(
+                    f"  组 {group.get('group_id', index)} 跳过缺失文件："
+                    + ", ".join(missing)
+                )
+            label = f"v2_{group.get('group_id', index)}"
+            self._log(
+                f"[{index}/{len(plan_groups)}] 测试组 {label} "
+                f"({group.get('reason', 'isolated')}): "
+                + ", ".join(unit.source.name for unit in units)
+            )
+            result = self._run_session(units, label)
+            self._log(
+                f"  → 组结果 {result.verdict.value}"
+                + (f"：{result.reason}" if result.reason else "")
+            )
+
+            if result.verdict == Verdict.OK:
+                for unit in units:
+                    self._resolve(
+                        unit,
+                        Verdict.OK,
+                        result.reason or "组合测试通过",
+                        result.excerpt,
+                        result.elapsed_seconds,
+                        menu_reached=result.menu_reached,
+                    )
+                continue
+            if len(units) == 1 or group.get("reason") == "user_group":
+                for unit in units:
+                    self._resolve(
+                        unit,
+                        result.verdict,
+                        result.reason or "组合测试未通过，无法单独归因",
+                        result.excerpt,
+                        result.elapsed_seconds,
+                        menu_reached=result.menu_reached,
+                        crash_dirs=result.crash_dirs,
+                    )
+                continue
+
+            # Try to attribute a failed group to one mod using existing bisection.
+            bad = self._isolate_bad(units)
+            if bad is not None:
+                self._log(
+                    f"  组合定位到问题 Mod：{bad.source.name}"
+                )
+                self._resolve(
+                    bad,
+                    Verdict.FAIL,
+                    result.reason or "组合测试定位失败",
+                    result.excerpt,
+                    result.elapsed_seconds,
+                    menu_reached=result.menu_reached,
+                    crash_dirs=result.crash_dirs,
+                )
+                for unit in units:
+                    if unit is not bad:
+                        self._resolve(
+                            unit,
+                            Verdict.OK,
+                            "组合测试中保持可用",
+                            result.excerpt,
+                            result.elapsed_seconds,
+                            menu_reached=result.menu_reached,
+                        )
+            else:
+                for unit in units:
+                    self._resolve(
+                        unit,
+                        result.verdict,
+                        "组合测试未通过且无法二分定位，请人工复核",
+                        result.excerpt,
+                        result.elapsed_seconds,
+                        menu_reached=result.menu_reached,
+                        crash_dirs=result.crash_dirs,
+                    )
 
     # ---------------------------------------------------------- batch strategy
     def _assign_batch_names(self, mod_files: list[Path]) -> list[DeployItem]:

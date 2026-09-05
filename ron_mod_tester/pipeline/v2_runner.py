@@ -13,6 +13,7 @@ def build_v2_report(
     plan_report: dict[str, Any],
     *,
     dry_run: bool = True,
+    dynamic_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Combine T1/T2/T3 outputs into the V2 report structure."""
     mods = list(plan_report.get("mods") or [])
@@ -26,7 +27,33 @@ def build_v2_report(
                     conflict_mods.add(name)
 
     needs_manual = sorted(conflict_mods)
-    dynamic_status = "dry_run" if dry_run else "pending"
+    if dynamic_summary:
+        dynamic_status = "executed"
+        results = list(dynamic_summary.get("results") or [])
+        per_test = [
+            {
+                "filename": str(result.get("filename", "")),
+                "verdict": str(result.get("verdict", "")),
+                "reason": str(result.get("reason", "")),
+                "elapsed_seconds": result.get("elapsed_seconds", 0),
+            }
+            for result in results
+        ]
+        usable = [
+            str(result.get("filename", ""))
+            for result in results
+            if result.get("verdict") == "可用"
+        ]
+        unusable = [
+            str(result.get("filename", ""))
+            for result in results
+            if result.get("verdict") in ("不可用", "错误")
+        ]
+    else:
+        dynamic_status = "dry_run" if dry_run else "pending"
+        per_test = []
+        usable = []
+        unusable = []
     return {
         "schema": "ronct.v2.report",
         "app": {"name": SHORT_NAME, "version": VERSION},
@@ -54,17 +81,21 @@ def build_v2_report(
         },
         "dynamic_results": {
             "status": dynamic_status,
-            "per_test": [],
+            "per_test": per_test,
         },
         "final_verdict": {
-            "usable": [],
-            "unusable": [],
+            "usable": sorted(set(usable)),
+            "unusable": sorted(set(unusable)),
             "needs_manual_check": needs_manual,
             "confidence": {},
             "note": (
                 "dry-run: 已生成测试计划，尚未启动游戏执行。"
                 if dry_run
-                else "计划已生成，等待动态执行。"
+                else (
+                    "动态测试已按计划执行。"
+                    if dynamic_summary
+                    else "计划已生成，等待动态执行。"
+                )
             ),
         },
     }

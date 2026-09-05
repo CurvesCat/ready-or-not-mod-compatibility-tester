@@ -181,7 +181,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--v2-run",
         action="store_true",
-        help="build a V2 report from static/dependency/plan reports (T4 dry-run)",
+        help="build a V2 report from static/dependency/plan reports (dry-run)",
+    )
+    parser.add_argument(
+        "--v2-execute",
+        action="store_true",
+        help="execute the V2 deploy plan with the real dynamic engine",
     )
     return parser
 
@@ -374,7 +379,7 @@ def _run_plan(args: argparse.Namespace) -> int:
 
 
 def _run_v2(args: argparse.Namespace) -> int:
-    """T4 v2 pipeline entry: report builder (dynamic execution added in T4b)."""
+    """T4 v2 pipeline entry: report builder + optional real dynamic execution."""
     import json
     from pathlib import Path
 
@@ -401,24 +406,97 @@ def _run_v2(args: argparse.Namespace) -> int:
         rules=rules,
         log=lambda text: print(text, flush=True),
     )
-    v2_report = build_v2_report(
-        static_report,
-        dep_report,
-        plan.as_dict(),
-        dry_run=True,
-    )
     out_dir = (
         Path(args.report_dir)
         if args.report_dir
         else Path(args.static_json).parent
     )
+
+    dynamic_summary = None
+    if args.v2_execute:
+        from .models import AppConfig
+        from .runner import TestRunner
+
+        config = AppConfig(
+            mod_folder=Path(args.mods) if args.mods else None,
+            mod_files=[Path(p) for p in args.files],
+            exclude_files=[Path(p) for p in args.exclude],
+            game_root=Path(args.game) if args.game else None,
+            exe_path=Path(args.exe) if args.exe else None,
+            mod_dir=Path(args.mod_dir) if args.mod_dir else None,
+            report_dir=Path(args.report_dir) if args.report_dir else None,
+            source=args.source,
+            disposition=args.disposition,
+            mode=args.mode,
+            stable_seconds=max(5, args.stable),
+            startup_timeout=max(20, args.startup_timeout),
+            menu_hold_seconds=max(1, args.menu_hold),
+            close_running=not args.no_close,
+            backup_mods=not args.no_backup,
+            backup_dir=Path(args.backup_dir) if args.backup_dir else None,
+            backup_max_file_mb=max(100, args.backup_max_file_mb),
+            backup_max_total_mb=max(100, args.backup_max_total_mb),
+            warmup=args.warmup,
+            extra_args=args.extra_args,
+        )
+        cancel_event = threading.Event()
+
+        def emit(kind: str, data: object) -> None:
+            if kind == "log":
+                print(str(data), flush=True)
+            elif kind == "status":
+                print("[status] " + str(data), flush=True)
+            elif kind == "progress":
+                done, total, name = data
+                print(f"[progress {done}/{total}] {name}", flush=True)
+            elif kind == "result":
+                print(
+                    f"  result {data.verdict.value} - {data.filename}",
+                    flush=True,
+                )
+            elif kind == "done":
+                print("Dynamic test finished.", flush=True)
+
+        try:
+            runner = TestRunner(
+                config=config,
+                emit=emit,
+                cancel_event=cancel_event,
+            )
+            dynamic_summary = runner.run(
+                plan_groups=plan.as_dict()["deploy_groups"]
+            )
+        except RuntimeError as exc:
+            print(f"Error: {exc}", flush=True)
+            return 1
+
+    v2_report = build_v2_report(
+        static_report,
+        dep_report,
+        plan.as_dict(),
+        dry_run=not bool(args.v2_execute),
+        dynamic_summary=dynamic_summary,
+    )
     json_path = write_v2_report(out_dir, v2_report)
-    print("\n=== V2 report (dry-run) ===", flush=True)
+    print(
+        "\n=== V2 report "
+        + ("(executed)" if args.v2_execute else "(dry-run)")
+        + " ===",
+        flush=True,
+    )
     print(
         f"mods {len(plan.mods)} / groups {len(plan.groups)} / "
         f"conflicts {len(plan.conflict_pairs)}",
         flush=True,
     )
+    if dynamic_summary:
+        print(
+            f"dynamic: usable {dynamic_summary.get('ok', 0)} / "
+            f"unusable {dynamic_summary.get('fail', 0)} / "
+            f"error {dynamic_summary.get('error', 0)} / "
+            f"skipped {dynamic_summary.get('skipped', 0)}",
+            flush=True,
+        )
     for group in plan.groups:
         print(
             f"  {group.group_id} [{group.reason}] " + ", ".join(group.mods),

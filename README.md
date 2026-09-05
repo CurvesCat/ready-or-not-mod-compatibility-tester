@@ -9,7 +9,7 @@
 ## Download
 
 **One file, everything inside (GUI + CLI + docs + license):**
-[Download ReadyOrNot-ModCompatTester_v0.1.5.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.1.5/ReadyOrNot-ModCompatTester_v0.1.5.zip)
+[Download ReadyOrNot-ModCompatTester_v0.2.0.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.2.0/ReadyOrNot-ModCompatTester_v0.2.0.zip)
 
 Other releases: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
 
@@ -47,6 +47,17 @@ quarantining or removing broken mods.
 - English and Chinese UI. The language is selected on first launch and can be
   changed later.
 - Configurable backup folder and backup size limits.
+
+## V2: static-first testing
+
+- **Static scan** reads every `.pak` and reports duplicate/overwrite conflicts
+  without launching the game.
+- **Dependency analysis** parses cooked Unreal assets to find cross-mod
+  references (for example "BluePrints requires Assets").
+- **Automatic deploy planning** groups interdependent mods into one launch and
+  keeps conflicting mods isolated.
+- The full V2 pipeline can be started from the GUI with the **V2 Test** button,
+  or from the CLI with `--v2-execute`.
 
 ## Requirements
 

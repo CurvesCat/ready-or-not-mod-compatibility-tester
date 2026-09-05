@@ -819,6 +819,19 @@ class App:
                 tools = saved.get("v2", {}) or {}
             except (OSError, json.JSONDecodeError):
                 tools = {}
+        # Auto-discover tools shipped next to the executable in a release.
+        if getattr(sys, "frozen", False):
+            base_dir = Path(sys.executable).resolve().parent
+        else:
+            base_dir = Path(__file__).resolve().parent.parent
+        auto_tools = {
+            "repak_exe": base_dir / "tools" / "repak" / "repak.exe",
+            "dotnet_exe": base_dir / "tools" / "dotnet" / "dotnet.exe",
+            "uasset_cli_dll": base_dir / "tools" / "uassetcli" / "UAssetCLI.dll",
+        }
+        for key, candidate in auto_tools.items():
+            if not str(tools.get(key) or "").strip() and candidate.is_file():
+                tools[key] = str(candidate)
         missing = [
             key
             for key in ("repak_exe", "dotnet_exe", "uasset_cli_dll")

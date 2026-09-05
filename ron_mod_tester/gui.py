@@ -1292,6 +1292,12 @@ class App:
         ).pack()
         ttk.Label(
             main_about,
+            text=t("about_testing_desc"),
+            style="Sub.TLabel",
+            wraplength=480,
+        ).pack(pady=(2, 4))
+        ttk.Label(
+            main_about,
             text=f"{t('author')}: {AUTHOR}",
             style="Sub.TLabel",
         ).pack(pady=(2, 8))

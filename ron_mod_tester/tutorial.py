@@ -9,6 +9,10 @@ TUTORIAL_TEXT = """\
 放进游戏目录，启动游戏并自动观察：游戏主窗口是否出现、进程是否稳定、是否崩溃/弹错。
 最终生成 CSV / JSON 报告，并把不可用 Mod 隔离、禁用或删除。
 
+推荐用法：点顶部“一键测试”，工具会自动完成静态体检 → 分析 Mod 依赖 →
+按依赖/冲突自动分组启动游戏 → 生成最终报告。普通用户不需要调整任何高级选项；
+需要微调观察时间、备份或处理方式时，再点“展开高级选项”。
+
 注意：本工具只能判断“启动 / 进主菜单阶段会不会崩”。如果某个 Mod 是进游戏后选武器、
 进地图才失效，而启动阶段正常，工具无法自动发现，需要你手动进游戏验证。
 
@@ -121,6 +125,12 @@ in-game. This tool copies each mod into the game folder one by one, launches
 the game, and watches whether the game window appears, stays stable, or
 crashes. It then writes CSV / JSON reports and quarantines, disables, or
 deletes unusable mods.
+
+Recommended usage: click "One-click test" at the top. The tool will run a static
+scan, analyze mod dependencies, group dependent/conflicting mods, launch the
+game per group, and write a final report. Normal users do not need to touch the
+advanced options; expand them only when you want to fine-tune timing, backups,
+or how unusable mods are handled.
 
 Note: it can only detect "startup / main-menu stage crashes". If a mod only
 breaks after entering a mission or equipping a weapon, this tool cannot detect

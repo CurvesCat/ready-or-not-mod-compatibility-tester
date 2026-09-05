@@ -71,9 +71,15 @@ $appSource = Join-Path $dist "ReadyOrNot-ModCompatTester"
 Copy-Item (Join-Path $appSource "*") $package -Recurse
 Copy-Item (Join-Path $repo "README.md") $package
 Copy-Item (Join-Path $repo "CHANGELOG.md") $package
+Copy-Item (Join-Path $repo "CONTRIBUTING.md") $package
+Copy-Item (Join-Path $repo "SECURITY.md") $package
+Copy-Item (Join-Path $repo "CODE_OF_CONDUCT.md") $package
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $package "LICENSE.txt")
 Copy-Item (Join-Path $repo "THIRD_PARTY_NOTICES.txt") $package
 Copy-Item (Join-Path $repo "assets\logo.png") (Join-Path $package "assets\logo.png")
+
+New-Item -ItemType Directory -Force -Path (Join-Path $package "docs") | Out-Null
+Copy-Item (Join-Path $repo "docs\legacy-cli.md") (Join-Path $package "docs\legacy-cli.md")
 
 Copy-Item (Join-Path $tools "repak\repak.exe") (Join-Path $package "tools\repak")
 Copy-Item (Join-Path $tools "repak\oo2core_9_win64.dll") (Join-Path $package "tools\repak")

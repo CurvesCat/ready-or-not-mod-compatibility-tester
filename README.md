@@ -8,15 +8,16 @@
 
 ## Download
 
-**One file, everything inside (GUI + CLI + docs + license):**
+**One file, everything inside (GUI + docs + license):**
 [Download ReadyOrNot-ModCompatTester_v0.2.1.zip](https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases/download/v0.2.1/ReadyOrNot-ModCompatTester_v0.2.1.zip)
 
 Other releases: <https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/releases>
 
-A Windows desktop tool that automatically tests whether each `.pak` mod still
-works after a *Ready or Not* game update. It launches the game once per mod,
-watches the game window and process, and produces CSV / JSON reports while
-quarantining or removing broken mods.
+A Windows desktop tool that checks whether each `.pak` mod still works after a
+*Ready or Not* game update. It first scans the mods without launching the game,
+then starts the game in dependency-aware groups, watches the window and
+process, and produces CSV / JSON reports while quarantining or removing broken
+mods.
 
 > This tool only detects **startup / main-menu stage crashes**. If a mod breaks
 > later (for example, when equipping a weapon or loading a mission), it cannot
@@ -48,7 +49,7 @@ quarantining or removing broken mods.
   changed later.
 - Configurable backup folder and backup size limits.
 
-## V2: static-first testing
+## Smart testing
 
 - **Static scan** reads every `.pak` and reports duplicate/overwrite conflicts
   without launching the game.
@@ -56,8 +57,7 @@ quarantining or removing broken mods.
   references (for example "BluePrints requires Assets").
 - **Automatic deploy planning** groups interdependent mods into one launch and
   keeps conflicting mods isolated.
-- The full V2 pipeline can be started from the GUI with the **V2 Test** button,
-  or from the CLI with `--v2-execute`.
+- The full pipeline runs from the **One-click test** button in the GUI.
 
 ## Requirements
 
@@ -72,52 +72,10 @@ Pre-built executables do not need Python. To run from source, Python 3.10+ and
 
 1. Run `ReadyOrNot-ModCompatTester.exe`.
 2. Choose the interface language.
-3. Pick the test source:
-   - *Candidate folder*: choose a folder containing `.pak` files, or click
-     *Add .pak files...*.
-   - *Installed in game folder*: test the mods already installed.
-4. Click *Auto detect* to locate the game.
-5. Optional: click *Auto timing* to measure startup time.
-6. Choose the strategy, the stable-observation seconds, and how to handle
-   unusable mods.
-7. Click *Start test*.
+3. Click *Browse* and choose a folder containing `.pak` files.
+4. Click **One-click test**.
 
 Do not operate the game manually while the tool is running.
-
-## Command line
-
-```powershell
-ReadyOrNot-ModCompatTester-cli.exe --mods "D:\Mods\RoN" --mode isolated
-ReadyOrNot-ModCompatTester-cli.exe --source installed --mode strict
-```
-
-Detailed command-line usage: [CLI_USAGE.txt](CLI_USAGE.txt)
-
-Common options:
-
-| Option | Description | Default |
-| --- | --- | --- |
-| `--mods` | Candidate folder of `.pak` mods | none |
-| `--files` | Individual `.pak` files to test | none |
-| `--exclude` | Files to exclude from testing | none |
-| `--source` | `folder` / `installed` | `folder` |
-| `--mode` | `isolated` / `strict` | `isolated` |
-| `--disposition` | `quarantine` / `disable` / `delete` / `record` | `quarantine` |
-| `--yes-delete` | Confirm `--disposition delete` (required, otherwise rejected) | off |
-| `--game` | Game root folder | auto-detect |
-| `--exe` | Game executable | auto-detect |
-| `--mod-dir` | Mod install folder | auto-detect |
-| `--report-dir` | Report output folder | next to the mod folder |
-| `--stable` | Stable observation seconds after the game window appears | 35 |
-| `--startup-timeout` | Timeout for the game window to appear | 120 |
-| `--menu-hold` | Extra observation seconds after the main-menu marker | 6 |
-| `--warmup` | Launch once without mods before the real test | off |
-| `--no-close` | Do not close an already running game before testing | off |
-| `--no-backup` | Record state only, do not copy backups | off |
-| `--backup-dir` | Backup folder | `backup` next to the exe |
-| `--backup-max-file-mb` | Do not copy a single file above this size (MB) | 1500 |
-| `--backup-max-total-mb` | Backup total size limit (MB) | 10000 |
-| `--extra-args` | Extra game launch arguments | `-windowed -nosplash` |
 
 Default report folders:
 
@@ -128,8 +86,7 @@ Default report folders:
 
 ```powershell
 python -m pip install psutil
-python -m ron_mod_tester                       # GUI
-python -m ron_mod_tester --mods "D:\Mods\RoN" --mode isolated   # CLI
+python -m ron_mod_tester
 ```
 
 ## Build the executable

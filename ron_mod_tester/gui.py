@@ -947,8 +947,7 @@ class App:
             messagebox.showwarning(
                 t("one_click_test"),
                 "一键测试需要可用的工具组件（repak / UAssetCLI）。"
-                "如果从源码运行，请先在 config.json 的 v2 里配置："
-                + ", ".join(missing),
+                "请确认 tools 文件夹与程序在同一目录，或重新解压发行包。",
             )
             return
         self._save_config(config)

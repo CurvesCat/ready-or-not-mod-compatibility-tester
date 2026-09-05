@@ -308,7 +308,6 @@ class App:
         )
         self._scroll_vsb.configure(command=self._scroll_canvas.yview)
         self._scroll_canvas.configure(yscrollcommand=self._scroll_vsb.set)
-        self._scroll_vsb.configure(style="Slim.Vertical.TScrollbar")
         self._scroll_vsb.pack(side=RIGHT, fill=Y)
         self._scroll_canvas.pack(side=LEFT, fill=BOTH, expand=True)
 

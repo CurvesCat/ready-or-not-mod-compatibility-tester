@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 class UAssetCliReader:
     """Parse cooked .uasset/.uexp files with the UAssetCLI worker."""
 
@@ -49,6 +52,7 @@ class UAssetCliReader:
                 errors="replace",
                 timeout=self.timeout,
                 check=False,
+                creationflags=_NO_WINDOW,
             )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(f"UAssetCLI 超时：{uasset_path.name}") from exc

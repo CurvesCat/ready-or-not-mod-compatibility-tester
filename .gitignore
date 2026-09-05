@@ -6,7 +6,6 @@ __pycache__/
 .Python
 build/
 dist/
-*.spec
 *.egg-info/
 .venv/
 venv/
@@ -18,6 +17,15 @@ venv/
 work/
 outputs/
 backup/
+quarantine/
+cache/
+reports/
+release/
+dist/
+packaging/release/
 *.log
 manifest.json
 config.json
+.pytest_cache/
+*.tmp
+*.zip

@@ -1,4 +1,4 @@
-"""RoNCT v0.3 modern GUI (PySide6, Windows 11 Fluent look).
+"""RoNCT v0.4 modern GUI (PySide6, Windows 11 Fluent look).
 
 Keeps the existing Python engine untouched; only replaces the outer shell.
 Theme follows the Windows app theme automatically.
@@ -12,13 +12,21 @@ import sys
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QRectF, QSize, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import (
+    QObject,
+    QRectF,
+    QSize,
+    Qt,
+    QThread,
+    QTimer,
+    QUrl,
+    Signal,
+)
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QVariantAnimation
 from PySide6.QtGui import (
     QColor,
     QDesktopServices,
     QFont,
-    QFontDatabase,
     QFontMetrics,
     QIcon,
     QPainter,
@@ -26,6 +34,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QAbstractButton,
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QDialog,
@@ -34,15 +43,22 @@ from PySide6.QtWidgets import (
     QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QMenu,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -58,9 +74,9 @@ from . import (
 )
 from .i18n import set_language, t as _t
 from .locate import detect_game, detect_mod_dir
-from .log import audit, get_logger, install_excepthook, setup_logging
+from .log import LOG_FILE, audit, get_logger, install_excepthook, setup_logging
 from .models import AppConfig
-from .safety import list_mod_paks, restore_backup
+from .safety import is_mod_pak, list_mod_paks, restore_backup
 
 CONFIG_PATH = app_root()
 CONFIG_FILE = CONFIG_PATH / "config.json"
@@ -92,7 +108,7 @@ THEME_LIGHT = {
     "onAccent": "#FFFFFF",
     "link": "#005FB8",
     "activeBg": "#E9E9E9",
-    "navHover": "#0000000D",
+    "navHover": "#0D000000",
     "success": "#0F7B0F",
     "successBg": "#E9F5E9",
     "danger": "#C42B1C",
@@ -119,7 +135,7 @@ THEME_DARK = {
     "onAccent": "#0A0A0A",
     "link": "#60CDFF",
     "activeBg": "#3B3B3B",
-    "navHover": "#FFFFFF0D",
+    "navHover": "#0DFFFFFF",
     "success": "#6CCB5F",
     "successBg": "#243A24",
     "danger": "#FF99A4",
@@ -136,9 +152,8 @@ def fluent_qss(dark: bool) -> str:
     t = THEME_DARK if dark else THEME_LIGHT
     return f"""
 * {{
-    font-family: "MiSans", "SF Pro Text", "SF Pro Display", "PingFang SC",
-                 "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
-                 "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+                 "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
     color: {t["text"]};
 }}
@@ -202,7 +217,8 @@ QSpinBox::up-button, QSpinBox::down-button {{
 }}
 
 QPushButton {{
-    border: none; border-radius: 4px; padding: 8px 16px; font-weight: 500;
+    border: none; border-radius: 6px; padding: 8px 16px; font-weight: 500;
+    min-height: 20px;
 }}
 QPushButton#primary {{
     background: {t["accent"]}; color: {t["onAccent"]}; font-size: 15px;
@@ -299,6 +315,26 @@ QPlainTextEdit {{
     background: {t["card"]}; border: 1px solid {t["border"]};
     border-radius: 6px; padding: 8px; color: {t["text"]};
 }}
+QDialog QPushButton {{
+    border-radius: 6px; padding: 7px 14px; min-height: 20px;
+    font-size: 13px;
+}}
+QDialog QPushButton#primary {{
+    background: {t["accent"]}; color: {t["onAccent"]}; font-weight: 600;
+    padding: 7px 18px; min-height: 22px;
+}}
+QDialog QPushButton#primary:hover {{ background: {t["accentHover"]}; }}
+QDialog QPushButton#primary:disabled {{
+    background: {t["scroll"]}; color: {t["tertiary"]};
+}}
+QDialog QPushButton#secondary {{
+    background: {t["card"]}; color: {t["text"]};
+    border: 1px solid {t["fieldBorder"]}; font-weight: 500;
+}}
+QDialog QPushButton#secondary:hover {{ background: {t["navHover"]}; }}
+QDialog QPushButton#secondary:disabled {{
+    color: {t["tertiary"]}; border-color: {t["border"]};
+}}
 """
 
 
@@ -389,22 +425,6 @@ def _asset_roots() -> list[Path]:
     roots.append(Path(sys.executable).resolve().parent)
     roots.append(Path(__file__).resolve().parent.parent)
     return roots
-
-
-def load_bundled_fonts() -> bool:
-    """Register bundled MiSans fonts (free to use, visually close to PingFang/SF)."""
-    loaded = False
-    for base in _asset_roots():
-        fonts_dir = base / "assets" / "fonts"
-        if not fonts_dir.is_dir():
-            continue
-        for font_file in sorted(fonts_dir.rglob("*.ttf")):
-            try:
-                if QFontDatabase.addApplicationFont(str(font_file)) >= 0:
-                    loaded = True
-            except Exception:
-                continue
-    return loaded
 
 
 def _default_quarantine_dir() -> Path:
@@ -589,6 +609,9 @@ class RunWorker(QObject):
         self.config: AppConfig | None = None
         self.tools: dict = {}
         self.cancel_event = threading.Event()
+        self.pre_static: dict | None = None
+        self.pre_dependency: dict | None = None
+        self.pre_plan: dict | None = None
 
     def run(self) -> None:
         from .pipeline.v2_gui import run_v2_gui
@@ -603,6 +626,9 @@ class RunWorker(QObject):
                 self.tools,
                 emit=self._emit,
                 cancel_event=self.cancel_event,
+                pre_static=self.pre_static,
+                pre_dependency=self.pre_dependency,
+                pre_plan=self.pre_plan,
             )
         except Exception as exc:  # noqa: BLE001 - user-facing
             get_logger().exception("V2 Qt runner failed")
@@ -623,6 +649,196 @@ class RunWorker(QObject):
         # "done" is intentionally ignored: RunWorker emits its own result.
 
 
+class NexusWorker(QObject):
+    """Runs Nexus connection checks / MD5 identification in the background."""
+
+    status_text = Signal(str)
+    progress = Signal(int, int, str)
+    finished = Signal(object)
+    failed = Signal(object)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.mode = "validate"  # "validate" | "identify"
+        self.api_key = ""
+        self.folder = ""
+        self.local_mods: list[dict] = []
+        self.cancel_event = threading.Event()
+
+    def run(self) -> None:
+        from .nexus.cache import Md5Cache
+        from .nexus.client import (
+            NexusAuthError,
+            NexusNetworkError,
+            NexusRateLimitError,
+        )
+        from .nexus.identify import identify_paks
+
+        try:
+            if self.mode == "validate":
+                from .nexus.client import NexusClient
+
+                info = NexusClient(self.api_key).validate()
+                self.finished.emit(
+                    {
+                        "kind": "validate",
+                        "name": str(info.get("name") or info.get("user_id") or ""),
+                    }
+                )
+                return
+
+            if self.mode == "requirements":
+                from .nexus.requirements import build_dependency_report
+
+                report = build_dependency_report(
+                    self.api_key,
+                    local_mods=self.local_mods or None,
+                )
+                payload = dict(report)
+                payload["kind"] = "requirements"
+                self.finished.emit(payload)
+                return
+
+            folder = Path(self.folder)
+            paks = list_mod_paks(folder)
+            payload: dict = {"kind": "identify", "total": len(paks), "results": []}
+            if paks:
+
+                def emit_progress(done: int, total: int, name: str) -> None:
+                    self.progress.emit(int(done), int(total), str(name))
+
+                items = identify_paks(
+                    paks,
+                    self.api_key,
+                    cache=Md5Cache(),
+                    emit=emit_progress,
+                    cancel_event=self.cancel_event,
+                )
+                payload["results"] = [item.as_dict() for item in items]
+                payload["canceled"] = self.cancel_event.is_set()
+            self.finished.emit(payload)
+        except Exception as exc:  # noqa: BLE001 - deliver a typed, user-safe error
+            if isinstance(exc, NexusAuthError):
+                error: dict = {"kind": "auth", "message": str(exc)}
+            elif isinstance(exc, NexusNetworkError):
+                error = {"kind": "network", "message": str(exc)}
+            elif isinstance(exc, NexusRateLimitError):
+                error = {"kind": "rate", "message": str(exc)}
+            else:
+                error = {"kind": "error", "message": str(exc)}
+            self.failed.emit(error)
+
+
+class CalibrationWorker(QObject):
+    """Launches the game once and estimates stable/startup timing in background."""
+
+    log_line = Signal(str)
+    status_text = Signal(str)
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.exe_path = ""
+        self.extra_args = ""
+        self.cancel_event = threading.Event()
+
+    def run(self) -> None:
+        from pathlib import Path
+
+        from .calibrate import calibrate
+
+        try:
+            result = calibrate(
+                Path(self.exe_path),
+                self.extra_args or "-windowed -nosplash",
+                startup_timeout=240,
+                max_seconds=180,
+                emit_log=lambda text: self.log_line.emit(str(text)),
+                cancel_event=self.cancel_event,
+            )
+            self.finished.emit(result)
+        except Exception as exc:  # noqa: BLE001 - user-facing message
+            self.failed.emit(str(exc))
+
+
+class DependencyWorker(QObject):
+    """Runs the local asset-dependency scan only (no game launch)."""
+
+    status_text = Signal(str)
+    progress = Signal(int, int, str)
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.folder = ""
+        self.files: list[str] = []
+        self.tools: dict = {}
+        self.cancel_event = threading.Event()
+
+    def run(self) -> None:
+        from pathlib import Path
+
+        from .static.analyzer import analyze_folder
+        from .static.deps import scan_dependencies
+
+        try:
+            folder = Path(self.folder)
+            if not folder.is_dir():
+                raise RuntimeError("依赖分析需要一个有效的 Mod 文件夹。")
+            repak_exe = str(self.tools.get("repak_exe") or "")
+            dotnet_exe = str(self.tools.get("dotnet_exe") or "")
+            uasset_cli = str(self.tools.get("uasset_cli_dll") or "")
+            if not repak_exe or not dotnet_exe or not uasset_cli:
+                raise RuntimeError(
+                    "依赖分析需要工具组件（repak / UAssetCLI / .NET）。"
+                )
+            only_paks: list[Path] | None = None
+            if self.files:
+                only_paks = [
+                    Path(path) for path in self.files if Path(path).is_file()
+                ] or None
+
+            def status(text: str) -> None:
+                self.status_text.emit(str(text))
+
+            status("正在体检 Mod：读取文件清单与冲突…")
+            static = analyze_folder(
+                folder,
+                repak_exe=repak_exe,
+                log=status,
+                only_paks=only_paks,
+            )
+            status("正在分析 Mod 间资产依赖（逐个解析资产，可能需要几分钟）…")
+
+            def dep_progress(done: int, total: int, name: str) -> None:
+                self.progress.emit(int(done), int(total), str(name))
+
+            dependency = scan_dependencies(
+                folder,
+                repak_exe=repak_exe,
+                dotnet_exe=dotnet_exe,
+                uasset_cli_dll=uasset_cli,
+                engine=str(self.tools.get("engine") or "VER_UE5_4"),
+                asset_limit=int(self.tools.get("asset_limit") or 0),
+                workers=int(self.tools.get("workers") or 4),
+                log=status,
+                progress=dep_progress,
+                only_paks=only_paks,
+            )
+            self.finished.emit(
+                {
+                    "kind": "dependency_analysis",
+                    "folder": str(folder),
+                    "static": static.as_dict(),
+                    "dependency": dependency,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - user-facing message
+            self.failed.emit(str(exc))
+
+
 class MainWindow(QMainWindow):
     def __init__(self, lang: str = "en") -> None:
         super().__init__()
@@ -639,6 +855,17 @@ class MainWindow(QMainWindow):
 
         # ----- persisted user state -----
         self.folder_path = str(self.cfg_data.get("mod_folder") or "")
+        raw_mod_files = self.cfg_data.get("mod_files")
+        self.mod_files: list[Path] = []
+        if isinstance(raw_mod_files, list):
+            for raw in raw_mod_files:
+                try:
+                    candidate = Path(str(raw))
+                except (TypeError, OSError):
+                    continue
+                if candidate.is_file() and candidate.suffix.lower() == ".pak":
+                    self.mod_files.append(candidate)
+        self.mod_files = sorted(set(self.mod_files), key=lambda p: str(p).casefold())
         self.game_root = str(self.cfg_data.get("game_root") or "")
         self.exe_path = str(self.cfg_data.get("exe_path") or "")
         self.mod_dir_path = str(self.cfg_data.get("mod_dir") or "")
@@ -658,6 +885,7 @@ class MainWindow(QMainWindow):
         self.backup_mods = bool(self.cfg_data.get("backup_mods", True))
         self.close_running = bool(self.cfg_data.get("close_running", True))
         self.warmup = bool(self.cfg_data.get("warmup", False))
+        self.analyze_deps = bool(self.cfg_data.get("analyze_deps", True))
 
         # ----- run state -----
         self.running = False
@@ -669,6 +897,32 @@ class MainWindow(QMainWindow):
         self.last_status_kind = "normal"
         self._thread: object | None = None
         self._worker: RunWorker | None = None
+        self.nexus_busy = False
+        self.nexus_state_text = ""
+        self.nexus_results: list[dict] = []
+        self.nexus_report_path: Path | None = None
+        self.nexus_dep_path: Path | None = None
+        self.nexus_mapping: dict = {}
+        self._nexus_thread: object | None = None
+        self._nexus_worker: NexusWorker | None = None
+        self.dep_busy = False
+        self.dep_report_path: Path | None = None
+        self._dep_thread: object | None = None
+        self._dep_worker: DependencyWorker | None = None
+        self.analysis_static: dict | None = None
+        self.analysis_dependency: dict | None = None
+        self.analysis_plan: dict | None = None
+        self._pending_static: dict | None = None
+        self._pending_dependency: dict | None = None
+        self._pending_plan: dict | None = None
+        self.auto_calibrate = bool(self.cfg_data.get("auto_calibrate", True))
+        cal = self.cfg_data.get("calibration")
+        self.calibration: dict = cal if isinstance(cal, dict) else {}
+        self._pending_config: AppConfig | None = None
+        self._pending_tools: dict = {}
+        self._calibrate_then_test = False
+        self._cal_thread: object | None = None
+        self._cal_worker: CalibrationWorker | None = None
 
         self.setWindowTitle(f"{APP_NAME} v{VERSION} - by {AUTHOR}")
         self.setWindowIcon(_app_icon())
@@ -769,6 +1023,7 @@ class MainWindow(QMainWindow):
             (_t("open_report"), self._open_report_folder),
             (_t("open_quarantine"), self._open_quarantine),
             (_t("view_log"), self._open_log_dialog),
+            (_t("open_backup"), self._open_backup_folder),
             (_t("restore_backup"), self._restore_backup),
             (_t("about"), self._open_about),
         ):
@@ -827,15 +1082,23 @@ class MainWindow(QMainWindow):
         self.folder_edit.textChanged.connect(self._refresh_folder_hint)
         row.addWidget(self.folder_edit, 1)
 
-        browse = QPushButton(_t("browse"))
-        browse.setObjectName("secondary")
-        browse.setCursor(Qt.PointingHandCursor)
-        browse.clicked.connect(self._browse_folder)
-        row.addWidget(browse)
+        select_btn = QPushButton(_t("select_mod_button"))
+        select_btn.setObjectName("secondary")
+        select_btn.setCursor(Qt.PointingHandCursor)
+        select_btn.setMenu(QMenu(select_btn))
+        self.mod_select_btn = select_btn
+        menu = select_btn.menu()
+        assert menu is not None
+        folder_action = menu.addAction(_t("select_mod_folder_action"))
+        folder_action.triggered.connect(self._browse_mod_source)
+        files_action = menu.addAction(_t("select_mod_files_action"))
+        files_action.triggered.connect(self._pick_mod_files)
+        row.addWidget(select_btn)
 
         detect = QPushButton(_t("auto_detect"))
         detect.setObjectName("secondary")
         detect.setCursor(Qt.PointingHandCursor)
+        self.mod_detect_btn = detect
         detect.clicked.connect(self._auto_detect_interactive)
         row.addWidget(detect)
         lay.addLayout(row)
@@ -886,6 +1149,11 @@ class MainWindow(QMainWindow):
         self.cta.setCursor(Qt.PointingHandCursor)
         self.cta.clicked.connect(self._start_test)
         cta_row.addWidget(self.cta)
+        self.dep_btn = QPushButton(_t("dep_analysis_button"))
+        self.dep_btn.setObjectName("secondary")
+        self.dep_btn.setCursor(Qt.PointingHandCursor)
+        self.dep_btn.clicked.connect(self._start_dependency_analysis)
+        cta_row.addWidget(self.dep_btn)
         self.stop_btn = QPushButton(_t("stop"))
         self.stop_btn.setObjectName("secondary")
         self.stop_btn.setCursor(Qt.PointingHandCursor)
@@ -909,24 +1177,6 @@ class MainWindow(QMainWindow):
         self.results_lay.setSpacing(6)
         self.results_box.setVisible(False)
         lay.addWidget(self.results_box)
-
-        action_row = QHBoxLayout()
-        action_row.setSpacing(10)
-        self.report_btn = QPushButton(_t("open_report"))
-        self.report_btn.setObjectName("secondary")
-        self.report_btn.setCursor(Qt.PointingHandCursor)
-        self.report_btn.clicked.connect(self._open_report_folder)
-        self.report_btn.setEnabled(False)
-        action_row.addWidget(self.report_btn)
-
-        self.quarantine_btn = QPushButton(_t("open_quarantine"))
-        self.quarantine_btn.setObjectName("secondary")
-        self.quarantine_btn.setCursor(Qt.PointingHandCursor)
-        self.quarantine_btn.clicked.connect(self._open_quarantine)
-        self.quarantine_btn.setEnabled(False)
-        action_row.addWidget(self.quarantine_btn)
-        action_row.addStretch()
-        lay.addLayout(action_row)
         return card
 
     def _build_advanced_card(self) -> QWidget:
@@ -992,6 +1242,27 @@ class MainWindow(QMainWindow):
         self.menu_spin.setValue(self.menu_hold)
         labelled(_t("menu_hold"), self.menu_spin)
 
+        calib_row = QHBoxLayout()
+        calib_row.setSpacing(8)
+        calib_lab = QLabel(_t("auto_calibrate_label"))
+        calib_lab.setObjectName("hint")
+        calib_row.addWidget(calib_lab)
+        calib_row.addStretch()
+        self.auto_cal_switch = ToggleSwitch(dark=self.dark)
+        self.auto_cal_switch.setChecked(self.auto_calibrate)
+        calib_row.addWidget(self.auto_cal_switch)
+        self.calib_btn = QPushButton(_t("calibrate_now"))
+        self.calib_btn.setObjectName("secondary")
+        self.calib_btn.setCursor(Qt.PointingHandCursor)
+        self.calib_btn.clicked.connect(self._start_manual_calibration)
+        calib_row.addWidget(self.calib_btn)
+        grid.addLayout(calib_row, grid.rowCount(), 0, 1, 2)
+        self.calib_info = QLabel()
+        self.calib_info.setObjectName("dim")
+        self.calib_info.setWordWrap(True)
+        grid.addWidget(self.calib_info, grid.rowCount(), 0, 1, 2)
+        self._refresh_calibration_hint()
+
         # 不可用 Mod 处理：Windows 11 分段选择
         disp_lab = QLabel(_t("unusable_handling"))
         disp_lab.setObjectName("hint")
@@ -1039,6 +1310,12 @@ class MainWindow(QMainWindow):
         self.backup_switch.setChecked(self.backup_mods)
         self.warmup_switch = switch_row(_t("warmup"))
         self.warmup_switch.setChecked(self.warmup)
+        self.deps_switch = switch_row(_t("analyze_deps_label"))
+        self.deps_switch.setChecked(self.analyze_deps)
+        deps_help = QLabel(_t("analyze_deps_help"))
+        deps_help.setObjectName("dim")
+        deps_help.setWordWrap(True)
+        grid.addWidget(deps_help, grid.rowCount(), 0, 1, 2)
 
         # 隔离目录：默认 exe 旁，也可自定义
         q_lab = QLabel(_t("quarantine_dir_label"))
@@ -1056,16 +1333,7 @@ class MainWindow(QMainWindow):
         q_browse.setCursor(Qt.PointingHandCursor)
         q_browse.clicked.connect(self._browse_quarantine_dir)
         q_row.addWidget(q_browse)
-        q_default = QPushButton(_t("quarantine_use_exe_dir"))
-        q_default.setObjectName("linkBtn")
-        q_default.setCursor(Qt.PointingHandCursor)
-        q_default.clicked.connect(self._use_default_quarantine_dir)
-        q_row.addWidget(q_default)
         grid.addLayout(q_row, grid.rowCount() - 1, 1)
-        q_hint = QLabel(_t("quarantine_dir_hint"))
-        q_hint.setObjectName("dim")
-        q_hint.setWordWrap(True)
-        grid.addWidget(q_hint, grid.rowCount(), 0, 1, 2)
 
         # 改动即时同步到内存，切换语言/主题时不会丢失
         self.strategy_seg.currentIndexChanged.connect(
@@ -1096,6 +1364,12 @@ class MainWindow(QMainWindow):
         )
         self.warmup_switch.toggled.connect(
             lambda checked: setattr(self, "warmup", bool(checked))
+        )
+        self.deps_switch.toggled.connect(
+            lambda checked: setattr(self, "analyze_deps", bool(checked))
+        )
+        self.auto_cal_switch.toggled.connect(
+            lambda checked: setattr(self, "auto_calibrate", bool(checked))
         )
         self.quarantine_edit.textChanged.connect(
             lambda text: setattr(self, "quarantine_dir", str(text).strip())
@@ -1156,6 +1430,49 @@ class MainWindow(QMainWindow):
         how.clicked.connect(self._open_nexus_help)
         row.addWidget(how)
         lay.addLayout(row)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        self.nexus_check_btn = QPushButton(_t("nexus_check_conn"))
+        self.nexus_check_btn.setObjectName("secondary")
+        self.nexus_check_btn.setCursor(Qt.PointingHandCursor)
+        self.nexus_check_btn.clicked.connect(self._check_nexus_connection)
+        actions.addWidget(self.nexus_check_btn)
+
+        self.nexus_identify_btn = QPushButton(_t("nexus_identify_btn"))
+        self.nexus_identify_btn.setObjectName("secondary")
+        self.nexus_identify_btn.setCursor(Qt.PointingHandCursor)
+        self.nexus_identify_btn.clicked.connect(self._identify_current_folder)
+        actions.addWidget(self.nexus_identify_btn)
+
+        self.nexus_view_btn = QPushButton(_t("nexus_view_results"))
+        self.nexus_view_btn.setObjectName("secondary")
+        self.nexus_view_btn.setCursor(Qt.PointingHandCursor)
+        self.nexus_view_btn.clicked.connect(self._show_nexus_results)
+        self.nexus_view_btn.setVisible(False)
+        actions.addWidget(self.nexus_view_btn)
+        actions.addStretch()
+        lay.addLayout(actions)
+
+        self.nexus_state_label = QLabel()
+        self.nexus_state_label.setObjectName("hint")
+        self.nexus_state_label.setWordWrap(True)
+        lay.addWidget(self.nexus_state_label)
+
+        self.nexus_progress = QProgressBar()
+        self.nexus_progress.setObjectName("prog")
+        self.nexus_progress.setRange(0, 1)
+        self.nexus_progress.setValue(0)
+        self.nexus_progress.setVisible(False)
+        lay.addWidget(self.nexus_progress)
+
+        privacy = QLabel(_t("nexus_md5_privacy"))
+        privacy.setObjectName("hint")
+        privacy.setWordWrap(True)
+        lay.addWidget(privacy)
+
+        if self.nexus_state_text:
+            self.nexus_state_label.setText(self.nexus_state_text)
         return card
 
     def _build_status_bar(self) -> QWidget:
@@ -1294,12 +1611,16 @@ class MainWindow(QMainWindow):
         self.backup_mods = self.backup_switch.isChecked()
         self.warmup = self.warmup_switch.isChecked()
         self.game_root = self.game_root_edit.text().strip()
-        self.quarantine_dir = self.quarantine_edit.text().strip()
+        self.quarantine_dir = (
+            self.quarantine_edit.text().strip() or str(_default_quarantine_dir())
+        )
 
     def _save_prefs(self, config: AppConfig) -> None:
         _write_cfg(
             {
                 "mod_folder": str(config.mod_folder) if config.mod_folder else "",
+                "mod_files": [str(p) for p in config.mod_files],
+                "exclude_files": [],
                 "game_root": str(config.game_root) if config.game_root else "",
                 "exe_path": str(config.exe_path) if config.exe_path else "",
                 "mod_dir": str(config.mod_dir) if config.mod_dir else "",
@@ -1313,6 +1634,7 @@ class MainWindow(QMainWindow):
                 "close_running": config.close_running,
                 "backup_mods": config.backup_mods,
                 "warmup": config.warmup,
+                "analyze_deps": self.analyze_deps,
                 "disposition": config.disposition,
                 "language": self.language,
             }
@@ -1322,19 +1644,860 @@ class MainWindow(QMainWindow):
         key = self.key_edit.text().strip()
         _write_cfg({"nexus_api_key": key})
         self.nexus_key = key
-        QMessageBox.information(
-            self, _t("one_click_test"), _t("nexus_key_saved")
+        self.nexus_results = []
+        self.nexus_view_btn.setVisible(False)
+        self.nexus_state_label.setText(_t("nexus_saved_hint"))
+        self._check_nexus_connection()
+
+    # ------------------------------------------------------------- nexus
+    def _check_nexus_connection(self) -> None:
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        key = self.key_edit.text().strip() or self.nexus_key
+        if not key:
+            self._set_nexus_state(_t("nexus_need_key"))
+            return
+        self._set_nexus_state(_t("nexus_conn_testing"))
+        self._start_nexus_worker("validate", key=key)
+
+    def _identify_current_folder(self) -> None:
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        key = self.key_edit.text().strip() or self.nexus_key
+        if not key:
+            self._set_nexus_state(_t("nexus_need_key"))
+            return
+        folder_text = self.folder_edit.text().strip() or self.folder_path
+        if not folder_text:
+            self._set_nexus_state(_t("nexus_need_folder"))
+            return
+        folder = Path(folder_text)
+        if not folder.is_dir():
+            self._set_nexus_state(_t("nexus_need_folder"))
+            return
+        if not list_mod_paks(folder):
+            self._set_nexus_state(_t("nexus_no_paks"))
+            return
+        self.nexus_view_btn.setVisible(False)
+        self._set_nexus_state(_t("nexus_preparing"))
+        self._start_nexus_worker("identify", key=key, folder=str(folder))
+
+    def _start_nexus_worker(
+        self,
+        mode: str,
+        key: str,
+        folder: str = "",
+        local_mods: list[dict] | None = None,
+    ) -> None:
+        self.nexus_busy = True
+        self.cancel_event.clear()
+        self._set_nexus_busy_ui(True)
+
+        worker = NexusWorker()
+        worker.mode = mode
+        worker.api_key = key
+        worker.folder = folder
+        worker.local_mods = local_mods or []
+        worker.cancel_event = self.cancel_event
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.progress.connect(self._on_nexus_progress)
+        worker.finished.connect(self._on_nexus_finished)
+        worker.failed.connect(self._on_nexus_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        self._nexus_thread = thread
+        self._nexus_worker = worker
+        thread.start()
+
+    def _set_nexus_busy_ui(self, busy: bool) -> None:
+        if not hasattr(self, "nexus_check_btn"):
+            return
+        if hasattr(self, "calib_btn"):
+            self.calib_btn.setEnabled(not busy and not self.running)
+        if hasattr(self, "mod_select_btn"):
+            self.mod_select_btn.setEnabled(not busy and not self.running)
+        if hasattr(self, "mod_detect_btn"):
+            self.mod_detect_btn.setEnabled(not busy and not self.running)
+        if hasattr(self, "dep_btn"):
+            self.dep_btn.setEnabled(not busy and not self.running and not self.dep_busy)
+        self.nexus_check_btn.setEnabled(not busy and not self.running)
+        self.nexus_identify_btn.setEnabled(not busy and not self.running)
+        self.key_edit.setEnabled(not busy)
+        self.nexus_progress.setVisible(busy)
+        if busy:
+            self.nexus_progress.setRange(0, 1)
+            self.nexus_progress.setValue(0)
+
+    def _set_nexus_state(self, text: str) -> None:
+        self.nexus_state_text = text
+        if hasattr(self, "nexus_state_label"):
+            self.nexus_state_label.setText(text)
+
+    def _on_nexus_progress(self, done: int, total: int, name: str) -> None:
+        if hasattr(self, "nexus_state_label"):
+            self.nexus_state_label.setText(
+                _t("nexus_identifying", done=int(done), total=int(total), name=str(name))
+            )
+        if hasattr(self, "nexus_progress"):
+            self.nexus_progress.setVisible(True)
+            self.nexus_progress.setRange(0, max(1, int(total)))
+            self.nexus_progress.setValue(int(done))
+
+    def _on_nexus_finished(self, payload: object) -> None:
+        self.nexus_busy = False
+        self._finish_nexus_thread_cleanup()
+        self._set_nexus_busy_ui(False)
+        data = payload if isinstance(payload, dict) else {}
+        if data.get("kind") == "validate":
+            name = str(data.get("name") or "")
+            suffix = f"（{name}）" if name else ""
+            self._set_nexus_state(_t("nexus_conn_ok", user=suffix))
+            return
+        if data.get("kind") == "requirements":
+            rows = data.get("rows") if isinstance(data.get("rows"), list) else []
+            rows = [row for row in rows if isinstance(row, dict)]
+            confirmed = int(data.get("confirmed_count") or 0)
+            issues = sum(
+                1 for row in rows if row.get("status") in ("missing", "error", "dlc")
+            )
+            self.nexus_dep_path = self._save_nexus_dep_report(rows)
+            self._set_nexus_state(
+                _t("nexus_deps_done", confirmed=confirmed, issues=issues)
+            )
+            self._show_nexus_dependencies(rows)
+            return
+        results = data.get("results") if isinstance(data.get("results"), list) else []
+        self.nexus_results = [item for item in results if isinstance(item, dict)]
+        self.nexus_report_path = (
+            self._save_nexus_report(self.nexus_results) if self.nexus_results else None
+        )
+        total = int(data.get("total") or 0)
+        found = sum(
+            1
+            for item in self.nexus_results
+            if item.get("status") in ("found", "cached")
+        )
+        unknown = sum(
+            1 for item in self.nexus_results if item.get("status") == "unknown"
+        )
+        possible = sum(
+            1 for item in self.nexus_results if item.get("status") == "candidate"
+        )
+        errors = sum(
+            1 for item in self.nexus_results if item.get("status") == "error"
+        )
+        if data.get("canceled"):
+            text = _t(
+                "nexus_identify_canceled",
+                done=len(self.nexus_results),
+                total=total,
+            )
+        else:
+            text = _t(
+                "nexus_identify_done",
+                found=found,
+                possible=possible,
+                unknown=unknown,
+                error=errors,
+            )
+        self._set_nexus_state(text)
+        self.nexus_view_btn.setVisible(bool(self.nexus_results))
+
+    def _on_nexus_failed(self, payload: object) -> None:
+        self.nexus_busy = False
+        self._finish_nexus_thread_cleanup()
+        self._set_nexus_busy_ui(False)
+        data = (
+            payload
+            if isinstance(payload, dict)
+            else {"kind": "error", "message": str(payload)}
+        )
+        kind = str(data.get("kind") or "error")
+        message = str(data.get("message") or "")
+        if kind == "auth":
+            text = _t("nexus_conn_bad")
+        elif kind == "network":
+            text = _t("nexus_conn_network", msg=message)
+        elif kind == "rate":
+            text = _t("nexus_rate_limited")
+        else:
+            text = _t("nexus_conn_error", msg=message)
+        self._set_nexus_state(text)
+
+    def _finish_nexus_thread_cleanup(self) -> None:
+        if isinstance(self._nexus_thread, QThread):
+            thread = self._nexus_thread
+            thread.quit()
+            thread.wait(3000)
+        self._nexus_thread = None
+        self._nexus_worker = None
+
+    def _save_nexus_report(self, results: list[dict]) -> Path | None:
+        from datetime import datetime
+
+        try:
+            report_dir = default_reports_dir()
+            report_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            json_path = report_dir / f"nexus_identification_{stamp}.json"
+            json_path.write_text(
+                json.dumps(
+                    {"results": results},
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            csv_path = report_dir / f"nexus_identification_{stamp}.csv"
+            with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                import csv
+
+                writer = csv.writer(handle)
+                writer.writerow(
+                    ["file", "status", "mod_id", "mod_name", "source_or_author", "url"]
+                )
+                for item in results:
+                    writer.writerow(
+                        [
+                            str(item.get("pak_name") or ""),
+                            str(item.get("status") or ""),
+                            str(item.get("mod_id") or ""),
+                            str(item.get("mod_name") or ""),
+                            str(item.get("file_name") or ""),
+                            str(item.get("mod_url") or ""),
+                        ]
+                    )
+            return json_path
+        except OSError:
+            return None
+
+    def _show_nexus_results(self) -> None:
+        if not self.nexus_results:
+            return
+        from .nexus.mapping import load_user_mapping
+
+        self.nexus_mapping = load_user_mapping()
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_t("nexus_results_title"))
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            geo = screen.availableGeometry()
+            dlg.resize(
+                max(980, min(1380, int(geo.width() * 0.92))),
+                max(600, min(780, int(geo.height() * 0.9))),
+            )
+        else:
+            dlg.resize(1280, 720)
+        dlg.setMinimumSize(920, 560)
+        lay = QVBoxLayout(dlg)
+        lay.setSpacing(10)
+
+        note = QLabel(_t("nexus_result_note"))
+        note.setObjectName("hint")
+        note.setWordWrap(True)
+        lay.addWidget(note)
+
+        headers = [
+            _t("nexus_col_file"),
+            _t("nexus_col_status"),
+            _t("nexus_col_mod"),
+            _t("nexus_col_version"),
+            _t("nexus_col_nexus_file"),
+            _t("nexus_col_link"),
+        ]
+        table = QTableWidget(len(self.nexus_results), len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.verticalHeader().setVisible(False)
+        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SingleSelection)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setAlternatingRowColors(True)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+
+        status_texts = {
+            "found": _t("nexus_status_found"),
+            "cached": _t("nexus_status_cached"),
+            "candidate": _t("nexus_status_candidate"),
+            "unknown": _t("nexus_status_unknown"),
+            "error": _t("nexus_status_error"),
+            "confirmed": _t("nexus_status_confirmed"),
+            "ignored": _t("nexus_status_ignored"),
+        }
+        for row, item_data in enumerate(self.nexus_results):
+            status, mod_id, mod_name, mod_url, source = self._nexus_display_values(
+                item_data
+            )
+            pak_path = str(item_data.get("pak") or "")
+            pak_name = str(item_data.get("pak_name") or Path(pak_path).name)
+            display = {
+                "mod_id": mod_id,
+                "mod_name": mod_name,
+                "mod_url": mod_url,
+            }
+            values = [
+                pak_name,
+                status_texts.get(status, status),
+                mod_name,
+                str(item_data.get("version") or ""),
+                source,
+                mod_url,
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value or "—")
+                if col == 0:
+                    cell.setData(Qt.UserRole + 1, item_data)
+                if col == 2:
+                    cell.setData(Qt.UserRole + 2, display)
+                if col == 5:
+                    cell.setData(Qt.UserRole, value)
+                    cell.setForeground(QColor(self._color("link")))
+                table.setItem(row, col, cell)
+        if table.rowCount() > 0:
+            table.selectRow(0)
+        table.cellDoubleClicked.connect(
+            lambda row, _col: self._open_nexus_row(table, int(row))
+        )
+        lay.addWidget(table)
+
+        row_actions = QHBoxLayout()
+        row_actions.setSpacing(10)
+        open_btn = QPushButton(_t("nexus_open_page"))
+        open_btn.setObjectName("secondary")
+        open_btn.setCursor(Qt.PointingHandCursor)
+        open_btn.clicked.connect(lambda: self._open_selected_nexus(table))
+        row_actions.addWidget(open_btn)
+
+        confirm_btn = QPushButton(_t("nexus_confirm_this"))
+        confirm_btn.setObjectName("primary")
+        confirm_btn.setCursor(Qt.PointingHandCursor)
+        confirm_btn.clicked.connect(lambda: self._confirm_nexus_selected(table))
+        row_actions.addWidget(confirm_btn)
+
+        candidate_btn = QPushButton(_t("nexus_other_candidates"))
+        candidate_btn.setObjectName("secondary")
+        candidate_btn.setCursor(Qt.PointingHandCursor)
+        candidate_btn.clicked.connect(lambda: self._choose_nexus_candidate(table))
+        row_actions.addWidget(candidate_btn)
+
+        ignore_btn = QPushButton(_t("nexus_mark_ignored"))
+        ignore_btn.setObjectName("secondary")
+        ignore_btn.setCursor(Qt.PointingHandCursor)
+        ignore_btn.clicked.connect(lambda: self._ignore_nexus_selected(table))
+        row_actions.addWidget(ignore_btn)
+
+        deps_btn = QPushButton(_t("nexus_check_deps"))
+        deps_btn.setObjectName("secondary")
+        deps_btn.setCursor(Qt.PointingHandCursor)
+
+        def _go_deps() -> None:
+            dlg.accept()
+            self._start_requirements_check()
+
+        deps_btn.clicked.connect(_go_deps)
+        row_actions.addWidget(deps_btn)
+
+        if self.nexus_report_path is not None:
+            report_btn = QPushButton(_t("open_report"))
+            report_btn.setObjectName("secondary")
+            report_btn.setCursor(Qt.PointingHandCursor)
+            report_btn.clicked.connect(self._open_report_folder)
+            row_actions.addWidget(report_btn)
+        row_actions.addStretch()
+        close_btn = QPushButton(_t("nexus_close"))
+        close_btn.setObjectName("secondary")
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.clicked.connect(dlg.accept)
+        row_actions.addWidget(close_btn)
+        lay.addLayout(row_actions)
+        dlg.setStyleSheet(fluent_qss(self.dark))
+        dlg.exec()
+
+    def _open_selected_nexus(self, table: QTableWidget, url_col: int = 5) -> None:
+        row = table.currentRow()
+        if row < 0:
+            if table.rowCount() > 0:
+                table.selectRow(0)
+                row = 0
+            else:
+                return
+        self._open_nexus_row(table, row, url_col)
+
+    def _open_nexus_row(self, table: QTableWidget, row: int, url_col: int = 5) -> None:
+        if row < 0 or row >= table.rowCount():
+            return
+        item = table.item(row, url_col)
+        if item is None:
+            return
+        url = str(item.data(Qt.UserRole) or "")
+        if not url:
+            url = item.text().strip()
+        if url.startswith("http"):
+            if not QDesktopServices.openUrl(QUrl(url)):
+                try:
+                    os.startfile(url)  # type: ignore[attr-defined]  # noqa: S606
+                except OSError:
+                    self._set_nexus_state(_t("nexus_open_failed"))
+
+    # ------------------------------------------------- nexus confirmations
+    def _nexus_display_values(self, item_data: dict) -> tuple[str, int | None, str, str, str]:
+        status = str(item_data.get("status") or "error")
+        md5 = str(item_data.get("md5") or "")
+        entry = self.nexus_mapping.get(md5.strip().lower()) if md5 else None
+        if isinstance(entry, dict) and entry.get("choice") == "confirmed":
+            try:
+                mod_id = int(entry.get("mod_id") or 0) or None
+            except (TypeError, ValueError):
+                mod_id = None
+            return (
+                "confirmed",
+                mod_id,
+                str(entry.get("mod_name") or ""),
+                str(entry.get("mod_url") or ""),
+                str(entry.get("author") or item_data.get("file_name") or ""),
+            )
+        if isinstance(entry, dict) and entry.get("choice") == "ignored":
+            return "ignored", None, "", "", ""
+        try:
+            mod_id = int(item_data.get("mod_id") or 0) or None
+        except (TypeError, ValueError):
+            mod_id = None
+        return (
+            status,
+            mod_id,
+            str(item_data.get("mod_name") or ""),
+            str(item_data.get("mod_url") or ""),
+            str(item_data.get("file_name") or ""),
         )
 
+    def _nexus_row_info(
+        self, table: QTableWidget, row: int
+    ) -> tuple[dict | None, dict | None]:
+        if row < 0 or row >= table.rowCount():
+            return None, None
+        item_data = table.item(row, 0)
+        item_display = table.item(row, 2)
+        data = item_data.data(Qt.UserRole + 1) if item_data is not None else None
+        display = item_display.data(Qt.UserRole + 2) if item_display is not None else None
+        return (
+            data if isinstance(data, dict) else None,
+            display if isinstance(display, dict) else None,
+        )
+
+    def _refresh_nexus_row(
+        self,
+        table: QTableWidget,
+        row: int,
+        status: str,
+        display: dict | None,
+        source: str = "",
+    ) -> None:
+        display = display or {}
+        status_map = {
+            "found": _t("nexus_status_found"),
+            "cached": _t("nexus_status_cached"),
+            "candidate": _t("nexus_status_candidate"),
+            "unknown": _t("nexus_status_unknown"),
+            "error": _t("nexus_status_error"),
+            "confirmed": _t("nexus_status_confirmed"),
+            "ignored": _t("nexus_status_ignored"),
+        }
+        name = str(display.get("mod_name") or "")
+        url = str(display.get("mod_url") or "")
+        table.item(row, 1).setText(status_map.get(status, status))
+        table.item(row, 2).setText(name or "—")
+        table.item(row, 2).setData(Qt.UserRole + 2, display)
+        table.item(row, 4).setText(source or "—")
+        table.item(row, 5).setText(url or "—")
+        table.item(row, 5).setData(Qt.UserRole, url)
+
+    def _confirm_nexus_selected(self, table: QTableWidget) -> None:
+        row = table.currentRow()
+        if row < 0 and table.rowCount() > 0:
+            table.selectRow(0)
+            row = 0
+        item_data, display = self._nexus_row_info(table, row)
+        if item_data is None or not item_data.get("md5"):
+            self._set_nexus_state(_t("nexus_need_md5"))
+            return
+        display = display or {}
+        mod_id = display.get("mod_id")
+        mod_name = str(display.get("mod_name") or "")
+        mod_url = str(display.get("mod_url") or "")
+        if not mod_id or not mod_url:
+            self._choose_nexus_candidate(table)
+            return
+        from .nexus.mapping import confirm_md5, load_user_mapping
+
+        source = str(item_data.get("file_name") or "")
+        confirm_md5(
+            str(item_data["md5"]),
+            int(mod_id),
+            mod_name,
+            mod_url,
+            pak_name=str(item_data.get("pak_name") or ""),
+            author=source,
+        )
+        self.nexus_mapping = load_user_mapping()
+        self._set_nexus_state(_t("nexus_confirm_saved", name=mod_name))
+        self._refresh_nexus_row(
+            table,
+            row,
+            "confirmed",
+            {"mod_id": mod_id, "mod_name": mod_name, "mod_url": mod_url},
+            source=source,
+        )
+
+    def _choose_nexus_candidate(self, table: QTableWidget) -> None:
+        row = table.currentRow()
+        if row < 0 and table.rowCount() > 0:
+            table.selectRow(0)
+            row = 0
+        item_data, _ = self._nexus_row_info(table, row)
+        if item_data is None or not item_data.get("md5"):
+            self._set_nexus_state(_t("nexus_need_md5"))
+            return
+        candidates = item_data.get("candidates") or []
+        candidates = [c for c in candidates if isinstance(c, dict)]
+        if not candidates:
+            QMessageBox.information(
+                self, _t("nexus_other_candidates"), _t("nexus_no_candidates")
+            )
+            return
+        pak_name = str(item_data.get("pak_name") or "")
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_t("nexus_candidates_title", file=pak_name))
+        dlg.resize(760, 420)
+        lay = QVBoxLayout(dlg)
+        list_box = QListWidget()
+        for candidate in candidates:
+            label = "{} — {}".format(
+                candidate.get("mod_name") or "",
+                candidate.get("author") or "",
+            ).strip(" —")
+            list_item = QListWidgetItem(label or str(candidate.get("mod_id") or ""))
+            list_item.setData(Qt.UserRole, candidate)
+            list_box.addItem(list_item)
+        if list_box.count() > 0:
+            list_box.setCurrentRow(0)
+        lay.addWidget(list_box)
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        ok_btn = QPushButton(_t("nexus_choose_candidate"))
+        ok_btn.setObjectName("primary")
+        ok_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn = QPushButton(_t("nexus_close"))
+        cancel_btn.setObjectName("secondary")
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        actions.addStretch()
+        actions.addWidget(cancel_btn)
+        actions.addWidget(ok_btn)
+        lay.addLayout(actions)
+
+        def _accept() -> None:
+            current = list_box.currentItem()
+            if current is None:
+                return
+            candidate = current.data(Qt.UserRole)
+            if not isinstance(candidate, dict):
+                return
+            from .nexus.mapping import confirm_md5, load_user_mapping
+
+            confirm_md5(
+                str(item_data["md5"]),
+                candidate.get("mod_id"),
+                candidate.get("mod_name") or "",
+                candidate.get("mod_url") or "",
+                pak_name=pak_name,
+                author=str(candidate.get("author") or ""),
+            )
+            self.nexus_mapping = load_user_mapping()
+            author = str(candidate.get("author") or "")
+            display = {
+                "mod_id": candidate.get("mod_id"),
+                "mod_name": candidate.get("mod_name") or "",
+                "mod_url": candidate.get("mod_url") or "",
+            }
+            self._set_nexus_state(
+                _t("nexus_confirm_saved", name=display["mod_name"])
+            )
+            self._refresh_nexus_row(
+                table, row, "confirmed", display, source=author
+            )
+            dlg.accept()
+
+        ok_btn.clicked.connect(_accept)
+        cancel_btn.clicked.connect(dlg.reject)
+        dlg.setStyleSheet(fluent_qss(self.dark))
+        dlg.exec()
+
+    def _ignore_nexus_selected(self, table: QTableWidget) -> None:
+        row = table.currentRow()
+        if row < 0 and table.rowCount() > 0:
+            table.selectRow(0)
+            row = 0
+        item_data, _ = self._nexus_row_info(table, row)
+        if item_data is None or not item_data.get("md5"):
+            self._set_nexus_state(_t("nexus_need_md5"))
+            return
+        from .nexus.mapping import ignore_md5, load_user_mapping
+
+        ignore_md5(str(item_data["md5"]))
+        self.nexus_mapping = load_user_mapping()
+        self._set_nexus_state(_t("nexus_ignored_saved"))
+        self._refresh_nexus_row(
+            table, row, "ignored", {"mod_id": None, "mod_name": "", "mod_url": ""}
+        )
+
+    def _start_requirements_check(self) -> None:
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        key = self.key_edit.text().strip() or self.nexus_key
+        if not key:
+            self._set_nexus_state(_t("nexus_need_key"))
+            return
+        from .nexus.mapping import load_user_mapping
+
+        mapping = load_user_mapping()
+        confirmed = [
+            record
+            for record in mapping.values()
+            if isinstance(record, dict)
+            and record.get("choice") == "confirmed"
+            and record.get("mod_id")
+        ]
+        if not confirmed:
+            QMessageBox.information(
+                self, _t("nexus_check_deps"), _t("nexus_deps_no_confirmed")
+            )
+            return
+        self._set_nexus_state(_t("nexus_deps_running"))
+        self._start_nexus_worker(
+            "requirements",
+            key=key,
+            local_mods=self.nexus_results or None,
+        )
+
+    def _save_nexus_dep_report(self, rows: list[dict]) -> Path | None:
+        from datetime import datetime
+
+        try:
+            report_dir = default_reports_dir()
+            report_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            json_path = report_dir / f"nexus_dependencies_{stamp}.json"
+            json_path.write_text(
+                json.dumps({"rows": rows}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            csv_path = report_dir / f"nexus_dependencies_{stamp}.csv"
+            with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                import csv
+
+                writer = csv.writer(handle)
+                writer.writerow(
+                    [
+                        "file",
+                        "source_mod",
+                        "status",
+                        "requirement",
+                        "kind",
+                        "notes",
+                        "url",
+                    ]
+                )
+                for row in rows:
+                    writer.writerow(
+                        [
+                            row.get("pak_name") or "",
+                            row.get("mod_name") or "",
+                            row.get("status") or "",
+                            row.get("req_name") or "",
+                            row.get("kind") or "",
+                            row.get("notes") or "",
+                            row.get("url") or "",
+                        ]
+                    )
+            return json_path
+        except OSError:
+            return None
+
+    def _show_nexus_dependencies(self, rows: list[dict]) -> None:
+        if not rows:
+            QMessageBox.information(
+                self, _t("nexus_deps_title"), _t("nexus_deps_none")
+            )
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_t("nexus_deps_title"))
+        dlg.resize(1080, 520)
+        lay = QVBoxLayout(dlg)
+        missing_map: dict[tuple, dict] = {}
+        for row in rows:
+            if str(row.get("status") or "") != "missing":
+                continue
+            key = (
+                str(row.get("req_id") or ""),
+                str(row.get("req_name") or ""),
+                str(row.get("url") or ""),
+            )
+            item = missing_map.get(key)
+            if item is None:
+                item = {
+                    "req_name": str(row.get("req_name") or ""),
+                    "url": str(row.get("url") or ""),
+                    "required_by": [],
+                }
+                missing_map[key] = item
+            source = str(row.get("mod_name") or row.get("pak_name") or "")
+            if source and source not in item["required_by"]:
+                item["required_by"].append(source)
+        missing = sorted(
+            missing_map.values(),
+            key=lambda item: str(item["req_name"]).casefold(),
+        )
+        if missing:
+            preview = missing[:8]
+            names = "、".join(
+                str(item.get("req_name") or item.get("url") or "?")
+                for item in preview
+            )
+            if len(missing) > len(preview):
+                names += "…"
+            summary_text = _t(
+                "nexus_deps_missing_summary",
+                count=len(missing),
+                names=names,
+            )
+        else:
+            local_candidates = sum(
+                1
+                for row in rows
+                if str(row.get("status") or "") == "local_candidate"
+            )
+            if local_candidates:
+                summary_text = _t(
+                    "nexus_deps_local_summary", count=local_candidates
+                )
+            else:
+                summary_text = _t("nexus_deps_all_ok_summary")
+        summary_label = QLabel(summary_text)
+        summary_label.setObjectName("hint")
+        summary_label.setWordWrap(True)
+        lay.addWidget(summary_label)
+        headers = [
+            _t("nexus_col_file"),
+            _t("nexus_col_own_mod"),
+            _t("nexus_col_status"),
+            _t("nexus_col_need"),
+            _t("nexus_col_link"),
+        ]
+        table = QTableWidget(len(rows), len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.verticalHeader().setVisible(False)
+        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SingleSelection)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setAlternatingRowColors(True)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        status_map = {
+            "installed": _t("nexus_dep_installed"),
+            "local_candidate": _t("nexus_dep_local_candidate"),
+            "missing": _t("nexus_dep_missing"),
+            "external": _t("nexus_dep_external"),
+            "dlc": _t("nexus_dep_dlc"),
+            "error": _t("nexus_dep_error"),
+        }
+        for row, data in enumerate(rows):
+            status = str(data.get("status") or "error")
+            values = [
+                str(data.get("pak_name") or ""),
+                str(data.get("mod_name") or ""),
+                status_map.get(status, status),
+                str(data.get("req_name") or ""),
+                str(data.get("url") or ""),
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value or "—")
+                if col == 4:
+                    cell.setData(Qt.UserRole, value)
+                    cell.setForeground(QColor(self._color("link")))
+                table.setItem(row, col, cell)
+        if table.rowCount() > 0:
+            table.selectRow(0)
+        table.cellDoubleClicked.connect(
+            lambda row, _col: self._open_nexus_row(table, int(row), 4)
+        )
+        lay.addWidget(table)
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        open_btn = QPushButton(_t("nexus_open_req_page"))
+        open_btn.setObjectName("secondary")
+        open_btn.setCursor(Qt.PointingHandCursor)
+        open_btn.clicked.connect(lambda: self._open_selected_nexus(table, 4))
+        actions.addWidget(open_btn)
+        if self.nexus_dep_path is not None:
+            report_btn = QPushButton(_t("open_report"))
+            report_btn.setObjectName("secondary")
+            report_btn.setCursor(Qt.PointingHandCursor)
+            report_btn.clicked.connect(self._open_report_folder)
+            actions.addWidget(report_btn)
+        actions.addStretch()
+        close_btn = QPushButton(_t("nexus_close"))
+        close_btn.setObjectName("primary")
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.clicked.connect(dlg.accept)
+        actions.addWidget(close_btn)
+        lay.addLayout(actions)
+        dlg.setStyleSheet(fluent_qss(self.dark))
+        dlg.exec()
+
     # --------------------------------------------------------------- paths
-    def _browse_folder(self) -> None:
+    def _browse_mod_source(self) -> None:
         path = QFileDialog.getExistingDirectory(
-            self, _t("mod_folder"), self.folder_path or str(Path.home())
+            self,
+            _t("mod_folder"),
+            self.folder_path
+            or self.mod_dir_path
+            or self.game_root
+            or str(Path.home()),
         )
         if path:
+            self.mod_files = []
             self.folder_path = path
             self.folder_edit.setText(path)
             self._refresh_folder_hint()
+            self._persist_current_prefs()
+
+    def _pick_mod_files(self) -> None:
+        start = (
+            self.mod_dir_path
+            or self.game_root
+            or str(Path.home())
+        )
+        raw_files, _ = QFileDialog.getOpenFileNames(
+            self,
+            _t("add_files"),
+            start,
+            "Pak files (*.pak);;All files (*.*)",
+        )
+        files = [
+            Path(p)
+            for p in raw_files
+            if Path(p).is_file() and is_mod_pak(Path(p).name)
+        ]
+        if not files:
+            return
+        self.mod_files = sorted(files, key=lambda p: str(p).casefold())
+        self.folder_path = ""
+        self.folder_edit.clear()
+        self._refresh_folder_hint()
+        self._persist_current_prefs()
 
     def _browse_game_root(self) -> None:
         path = QFileDialog.getExistingDirectory(
@@ -1342,6 +2505,7 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.game_root_edit.setText(path)
+            self._persist_current_prefs()
 
     def _browse_quarantine_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(
@@ -1351,9 +2515,7 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.quarantine_edit.setText(path)
-
-    def _use_default_quarantine_dir(self) -> None:
-        self.quarantine_edit.setText(str(_default_quarantine_dir()))
+            self._persist_current_prefs()
 
     def _auto_detect_quiet(self) -> None:
         info = self._detect()
@@ -1367,10 +2529,6 @@ class MainWindow(QMainWindow):
             detected = detect_mod_dir(info)
             if detected:
                 self.mod_dir_path = str(detected)
-        # 首次打开（没有保存过路径）时，默认选游戏的 Mod 文件夹（Paks）
-        if not self.folder_path and self.mod_dir_path:
-            self.folder_path = self.mod_dir_path
-            self.folder_edit.setText(self.folder_path)
 
     def _detect(self):
         try:
@@ -1390,6 +2548,7 @@ class MainWindow(QMainWindow):
             return
         self.game_root = str(info.root)
         self.exe_path = str(info.exe)
+        self.mod_files = []
         detected = detect_mod_dir(info)
         if detected:
             self.mod_dir_path = str(detected)
@@ -1399,6 +2558,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "game_root_edit"):
             self.game_root_edit.setText(self.game_root)
         self._refresh_folder_hint()
+        self._persist_current_prefs()
         self._set_status(
             self._local(f"已检测到游戏：{info.root}", f"Game detected: {info.root}")
         )
@@ -1418,25 +2578,31 @@ class MainWindow(QMainWindow):
             return
         self.folder_path = self.folder_edit.text().strip()
         folder = Path(self.folder_path) if self.folder_path else None
-        paks: list = []
+        paks: list[Path] = []
         if folder is not None and folder.is_dir():
             paks = list_mod_paks(folder)
+        manual_files = [p for p in self.mod_files if p.is_file()]
         installed = self._folder_is_installed()
-        if folder is None or not folder.is_dir():
-            self.folder_hint.setText(_t("mods_hint"))
-            self.installed_label.setVisible(False)
-        elif not paks:
+        if folder is not None and folder.is_dir() and not paks:
             self.folder_hint.setText(_t("no_mods_found"))
             self.installed_label.setVisible(False)
-        else:
+        elif folder is not None and folder.is_dir():
             self.folder_hint.setText(_t("detected_mods", n=len(paks)))
             self.installed_label.setVisible(installed)
             if installed:
                 self.installed_label.setText(_t("installed_hint"))
+        elif manual_files:
+            self.folder_hint.setText(_t("manual_files_selected", n=len(manual_files)))
+            self.installed_label.setVisible(False)
+        else:
+            self.folder_hint.setText(_t("mods_hint"))
+            self.installed_label.setVisible(False)
         if self.running:
             return
-        can_start = bool(paks) and self._tools_ok()
+        can_start = bool(paks or manual_files) and self._tools_ok()
         self.cta.setEnabled(can_start)
+        if hasattr(self, "dep_btn"):
+            self.dep_btn.setEnabled(can_start)
 
     def _tools_ok(self) -> bool:
         _, missing = _resolve_tools(_read_cfg())
@@ -1479,16 +2645,25 @@ class MainWindow(QMainWindow):
     def _build_config(self) -> AppConfig | None:
         self._collect_advanced()
         folder = Path(self.folder_path) if self.folder_path else None
-        if folder is None or not folder.is_dir():
-            return None
-        installed = self._folder_is_installed()
-        if installed:
-            source = "installed"
-            mod_dir = folder
+        manual_files = [p for p in self.mod_files if p.is_file()]
+        installed = False
+        source = "folder"
+        mod_folder: Path | None = None
+        if folder is not None and folder.is_dir():
+            manual_files = []
+            installed = self._folder_is_installed()
+            if installed:
+                source = "installed"
+                mod_dir = folder
+            else:
+                source = "folder"
+                mod_folder = folder
+        elif manual_files:
+            source = "folder"
             mod_folder = None
         else:
-            source = "folder"
-            mod_folder = folder
+            return None
+        if not installed:
             if self.mod_dir_path:
                 mod_dir = Path(self.mod_dir_path)
             else:
@@ -1506,6 +2681,7 @@ class MainWindow(QMainWindow):
         exe_path = Path(self.exe_path) if self.exe_path else None
         return AppConfig(
             mod_folder=mod_folder,
+            mod_files=manual_files,
             mod_dir=mod_dir,
             game_root=game_root,
             exe_path=exe_path,
@@ -1530,7 +2706,7 @@ class MainWindow(QMainWindow):
         )
 
     def _start_test(self) -> None:
-        if self.running:
+        if self.running or self.nexus_busy or self.dep_busy:
             return
         audit("v2_test_qt")
         config = self._build_config()
@@ -1543,6 +2719,7 @@ class MainWindow(QMainWindow):
                 self, _t("one_click_test"), _t("tool_missing_msg")
             )
             return
+        tools["analyze_deps"] = self.analyze_deps
         if config.disposition == "delete":
             answer = QMessageBox.warning(
                 self,
@@ -1556,6 +2733,22 @@ class MainWindow(QMainWindow):
         self._save_prefs(config)
         self._save_current_options()
 
+        if self.auto_calibrate and self._calibration_needed(config):
+            self._pending_config = config
+            self._pending_tools = tools
+            self._calibrate_then_test = True
+            self._start_calibration_worker()
+            return
+        self._run_test(config, tools)
+
+    def _run_test(
+        self,
+        config: AppConfig,
+        tools: dict,
+        pre_static: dict | None = None,
+        pre_dependency: dict | None = None,
+        pre_plan: dict | None = None,
+    ) -> None:
         self.result_items = []
         self.summary = None
         self.running = True
@@ -1567,6 +2760,9 @@ class MainWindow(QMainWindow):
         worker.config = config
         worker.tools = tools
         worker.cancel_event = self.cancel_event
+        worker.pre_static = pre_static
+        worker.pre_dependency = pre_dependency
+        worker.pre_plan = pre_plan
         thread = QThread(self)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
@@ -1583,10 +2779,678 @@ class MainWindow(QMainWindow):
         self._worker = worker
         thread.start()
 
+    # ----------------------------------------------------------- calibration
+    def _calibration_needed(self, config: AppConfig) -> bool:
+        if not self.auto_calibrate:
+            return False
+        cal = self.calibration
+        if not isinstance(cal, dict) or not cal:
+            return True
+        if str(cal.get("exe_path") or "") != str(config.exe_path or ""):
+            return True
+        if str(cal.get("extra_args") or "") != str(config.extra_args or ""):
+            return True
+        updated = str(cal.get("updated_at") or "")
+        try:
+            from datetime import datetime
+
+            age = datetime.now() - datetime.fromisoformat(updated)
+            if age.total_seconds() >= 7 * 24 * 3600:
+                return True
+        except ValueError:
+            return True
+        return False
+
+    def _refresh_calibration_hint(self) -> None:
+        if not hasattr(self, "calib_info"):
+            return
+        cal = self.calibration
+        if not isinstance(cal, dict) or not cal:
+            self.calib_info.setText(_t("calib_info_none"))
+            return
+        stamp = str(cal.get("updated_at") or "")
+        if len(stamp) >= 16:
+            stamp = stamp[:16].replace("T", " ")
+
+        def _fmt(value: object) -> str:
+            try:
+                number = float(value or 0)
+            except (TypeError, ValueError):
+                return "—"
+            return f"{number:.0f}" if number else "—"
+
+        self.calib_info.setText(
+            _t(
+                "calib_info_ok",
+                time=stamp,
+                window=_fmt(cal.get("window_seconds")),
+                idle=_fmt(cal.get("idle_seconds")),
+            )
+        )
+
+    def _start_manual_calibration(self) -> None:
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        if not self.exe_path or not Path(self.exe_path).is_file():
+            QMessageBox.warning(self, _t("auto_timing"), _t("calib_no_exe"))
+            return
+        self._pending_config = None
+        self._pending_tools = {}
+        self._calibrate_then_test = False
+        self._start_calibration_worker()
+
+    def _start_calibration_worker(self) -> None:
+        config = self._pending_config
+        if config is not None:
+            exe = str(config.exe_path or "")
+            args = str(config.extra_args or "")
+        else:
+            exe = self.exe_path
+            args = self.extra_args
+        if not exe or not Path(exe).is_file():
+            QMessageBox.warning(self, _t("auto_timing"), _t("calib_no_exe"))
+            self._pending_config = None
+            self._calibrate_then_test = False
+            return
+        audit("auto_calibrate")
+        self.running = True
+        self.cancel_event.clear()
+        self._set_running_ui(True)
+        self.progress.setVisible(False)
+        self.run_status.setText(_t("calib_starting"))
+        self._set_status(_t("calib_starting"), "warn")
+
+        worker = CalibrationWorker()
+        worker.exe_path = exe
+        worker.extra_args = args
+        worker.cancel_event = self.cancel_event
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.log_line.connect(self._on_log)
+        worker.status_text.connect(self._on_status)
+        worker.finished.connect(self._on_calibration_done)
+        worker.failed.connect(self._on_calibration_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        self._cal_thread = thread
+        self._cal_worker = worker
+        thread.start()
+
+    def _finish_calibration_cleanup(self) -> None:
+        if isinstance(self._cal_thread, QThread):
+            thread = self._cal_thread
+            thread.quit()
+            thread.wait(3000)
+        self._cal_thread = None
+        self._cal_worker = None
+
+    def _on_calibration_done(self, payload: object) -> None:
+        data = payload if isinstance(payload, dict) else {}
+        self.running = False
+        self._finish_calibration_cleanup()
+        self._set_running_ui(False)
+
+        pending = self._pending_config
+        tools = self._pending_tools
+        self._pending_config = None
+        self._pending_tools = {}
+        pending_static = self._pending_static
+        pending_dependency = self._pending_dependency
+        pending_plan = self._pending_plan
+        self._pending_static = None
+        self._pending_dependency = None
+        self._pending_plan = None
+        then_test = self._calibrate_then_test
+        self._calibrate_then_test = False
+
+        if self.cancel_event.is_set():
+            self._set_status(_t("calib_canceled"), "warn")
+            return
+
+        window = data.get("window_seconds")
+        idle = data.get("idle_seconds")
+        suggested = max(5, int(float(data.get("suggested_stable") or 35)))
+        try:
+            window_f = float(window or 0)
+        except (TypeError, ValueError):
+            window_f = 0.0
+        startup = min(900, max(60, int(window_f * 1.8) + 30, self.startup))
+        self.stable = suggested
+        self.startup = startup
+        if hasattr(self, "stable_spin"):
+            self.stable_spin.setValue(suggested)
+        if hasattr(self, "startup_spin"):
+            self.startup_spin.setValue(startup)
+
+        from datetime import datetime
+
+        exe = str(
+            (pending.exe_path if pending is not None else None) or self.exe_path or ""
+        )
+        extra = str(
+            (pending.extra_args if pending is not None else None)
+            or self.extra_args
+            or ""
+        )
+        self.calibration = {
+            "exe_path": exe,
+            "extra_args": extra,
+            "window_seconds": data.get("window_seconds"),
+            "idle_seconds": data.get("idle_seconds"),
+            "stable_seconds": suggested,
+            "startup_timeout": startup,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        _write_cfg(
+            {
+                "auto_calibrate": self.auto_calibrate,
+                "calibration": self.calibration,
+            }
+        )
+        if pending is not None:
+            pending.stable_seconds = suggested
+            pending.startup_timeout = startup
+            self._save_prefs(pending)
+        self._refresh_calibration_hint()
+
+        def _fmt_seconds(value: object) -> str:
+            if value is None or value == "":
+                return "—"
+            try:
+                return f"{float(value):.0f}s"
+            except (TypeError, ValueError):
+                return "—"
+
+        self._set_status(
+            _t("calib_done", window=_fmt_seconds(window), idle=_fmt_seconds(idle)),
+            "normal",
+        )
+        if then_test and pending is not None and tools:
+            if pending_plan is not None:
+                self._run_test(
+                    pending,
+                    tools,
+                    pending_static,
+                    pending_dependency,
+                    pending_plan,
+                )
+            else:
+                self._run_test(pending, tools)
+
+    def _on_calibration_failed(self, message: str) -> None:
+        self.running = False
+        self._finish_calibration_cleanup()
+        self._set_running_ui(False)
+        self._pending_config = None
+        self._pending_tools = {}
+        self._pending_static = None
+        self._pending_dependency = None
+        self._pending_plan = None
+        self._calibrate_then_test = False
+        self._set_status(_t("calib_failed", msg=str(message)), "error")
+
     def _save_current_options(self) -> None:
         # values already persisted through _save_prefs(config); keep for memory.
         self.folder_path = self.folder_edit.text().strip()
         self.report_dir_path = self.report_dir_path
+
+    def _persist_current_prefs(self) -> None:
+        """Save source/advanced settings immediately so choices survive restarts."""
+        if hasattr(self, "strategy_seg"):
+            self._collect_advanced()
+        folder_text = self.folder_edit.text().strip() if hasattr(self, "folder_edit") else self.folder_path
+        folder_text = folder_text if folder_text and Path(folder_text).is_dir() else ""
+        _write_cfg(
+            {
+                "mod_folder": folder_text,
+                "mod_files": [str(p) for p in self.mod_files if p.is_file()],
+                "exclude_files": [],
+                "game_root": self.game_root,
+                "exe_path": self.exe_path,
+                "mod_dir": self.mod_dir_path,
+                "report_dir": self.report_dir_path,
+                "quarantine_dir": self.quarantine_dir,
+                "mode": self.mode,
+                "stable_seconds": self.stable,
+                "startup_timeout": self.startup,
+                "menu_hold_seconds": self.menu_hold,
+                "extra_args": self.extra_args,
+                "close_running": self.close_running,
+                "backup_mods": self.backup_mods,
+                "warmup": self.warmup,
+                "analyze_deps": self.analyze_deps,
+                "auto_calibrate": self.auto_calibrate,
+                "disposition": self.disposition,
+                "language": self.language,
+            }
+        )
+
+    # ------------------------------------------------------- dependency only
+    def _dependency_source_folder(self) -> Path | None:
+        text = self.folder_edit.text().strip() or self.folder_path
+        if text:
+            folder = Path(text)
+            if folder.is_dir():
+                return folder
+        if self.mod_files:
+            parents = {str(p.parent.resolve()) for p in self.mod_files if p.is_file()}
+            if len(parents) == 1:
+                return Path(next(iter(parents)))
+        if self.mod_dir_path:
+            folder = Path(self.mod_dir_path)
+            if folder.is_dir():
+                return folder
+        return None
+
+    def _start_dependency_analysis(self) -> None:
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        folder = self._dependency_source_folder()
+        if folder is None:
+            QMessageBox.information(
+                self, _t("dep_analysis_title"), _t("dep_need_folder")
+            )
+            return
+        cfg = _read_cfg()
+        tools, missing = _resolve_tools(cfg)
+        if missing:
+            QMessageBox.warning(
+                self, _t("dep_analysis_title"), _t("tool_missing_msg")
+            )
+            return
+        audit("dependency_analysis_only")
+        self.dep_report_path = None
+        self.cancel_event.clear()
+        self._set_dep_busy_ui(True)
+
+        worker = DependencyWorker()
+        worker.folder = str(folder)
+        if not self.folder_edit.text().strip() and self.mod_files:
+            worker.files = [str(path) for path in self.mod_files if path.is_file()]
+        worker.tools = tools
+        worker.cancel_event = self.cancel_event
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.status_text.connect(self._on_dep_status)
+        worker.progress.connect(self._on_dep_progress)
+        worker.finished.connect(self._on_dependency_done)
+        worker.failed.connect(self._on_dependency_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        self._dep_thread = thread
+        self._dep_worker = worker
+        thread.start()
+
+    def _start_test_from_analysis(self, dialog: QDialog | None = None) -> None:
+        """Start one-click testing reusing the dependency analysis just completed."""
+        if self.running or self.nexus_busy or self.dep_busy:
+            return
+        if not self.analysis_plan:
+            return
+        if dialog is not None:
+            dialog.accept()
+        audit("v2_test_qt_from_analysis")
+        config = self._build_config()
+        if config is None:
+            QMessageBox.information(
+                self, _t("one_click_test"), _t("dep_need_folder")
+            )
+            return
+        cfg = _read_cfg()
+        tools, missing = _resolve_tools(cfg)
+        if missing:
+            QMessageBox.warning(
+                self, _t("one_click_test"), _t("tool_missing_msg")
+            )
+            return
+        tools["analyze_deps"] = True
+        if config.disposition == "delete":
+            answer = QMessageBox.warning(
+                self,
+                _t("确认删除"),
+                _t("confirm_delete_text"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
+        self._save_prefs(config)
+        self._save_current_options()
+
+        if self.auto_calibrate and self._calibration_needed(config):
+            self._pending_config = config
+            self._pending_tools = tools
+            self._pending_static = self.analysis_static
+            self._pending_dependency = self.analysis_dependency
+            self._pending_plan = self.analysis_plan
+            self._calibrate_then_test = True
+            self._start_calibration_worker()
+            return
+        self._run_test(
+            config,
+            tools,
+            self.analysis_static,
+            self.analysis_dependency,
+            self.analysis_plan,
+        )
+
+    def _set_dep_busy_ui(self, busy: bool) -> None:
+        self.dep_busy = busy
+        self.cta.setEnabled(not busy and not self.running)
+        if hasattr(self, "dep_btn"):
+            self.dep_btn.setEnabled(
+                not busy and not self.running and not self.nexus_busy
+            )
+        self.folder_edit.setEnabled(not busy)
+        if hasattr(self, "mod_select_btn"):
+            self.mod_select_btn.setEnabled(not busy and not self.running)
+        if hasattr(self, "mod_detect_btn"):
+            self.mod_detect_btn.setEnabled(not busy and not self.running)
+        if hasattr(self, "adv_btn"):
+            self.adv_btn.setEnabled(not busy)
+        if hasattr(self, "nexus_check_btn"):
+            enabled = not busy and not self.running and not self.nexus_busy
+            self.nexus_check_btn.setEnabled(enabled)
+            self.nexus_identify_btn.setEnabled(enabled)
+            if hasattr(self, "key_edit"):
+                self.key_edit.setEnabled(not busy)
+        self.progress.setVisible(busy)
+        self.run_status.setVisible(busy)
+        if busy:
+            self.progress.setRange(0, 1)
+            self.progress.setValue(0)
+            self.run_status.setText(_t("dep_analysis_started"))
+            self._set_status(_t("dep_analysis_started"), "warn")
+
+    def _on_dep_status(self, text: str) -> None:
+        self.run_status.setVisible(True)
+        self.run_status.setText(str(text))
+        self._set_status(str(text), "warn")
+
+    def _on_dep_progress(self, done: int, total: int, name: str) -> None:
+        self.progress.setRange(0, max(1, int(total)))
+        self.progress.setValue(int(done))
+        text = _t("running_dots", done=int(done), total=int(total), name=str(name))
+        self.run_status.setVisible(True)
+        self.run_status.setText(text)
+        self._set_status(text, "warn")
+
+    def _finish_dep_cleanup(self) -> None:
+        if isinstance(self._dep_thread, QThread):
+            thread = self._dep_thread
+            thread.quit()
+            thread.wait(3000)
+        self._dep_thread = None
+        self._dep_worker = None
+
+    def _on_dependency_done(self, payload: object) -> None:
+        data = payload if isinstance(payload, dict) else {}
+        self._finish_dep_cleanup()
+        self._set_dep_busy_ui(False)
+        static = data.get("static") if isinstance(data.get("static"), dict) else {}
+        dependency = (
+            data.get("dependency")
+            if isinstance(data.get("dependency"), dict)
+            else {}
+        )
+        self.dep_report_path = self._save_dependency_analysis_report(
+            static, dependency
+        )
+        mods = len(dependency.get("paks") or [])
+        edges = len(dependency.get("edges") or [])
+        unresolved = len(dependency.get("unresolved_refs") or [])
+        errors = len(dependency.get("parse_errors") or [])
+        self._set_status(
+            _t(
+                "dep_analysis_done",
+                mods=mods,
+                edges=edges,
+                unresolved=unresolved,
+            ),
+            "normal",
+        )
+        self._show_dependency_results(static, dependency)
+
+    def _on_dependency_failed(self, message: str) -> None:
+        self._finish_dep_cleanup()
+        self._set_dep_busy_ui(False)
+        self._set_status(_t("出错：") + str(message), "error")
+        QMessageBox.critical(self, _t("dep_analysis_title"), str(message))
+
+    def _save_dependency_analysis_report(
+        self, static: dict, dependency: dict
+    ) -> Path | None:
+        from datetime import datetime
+
+        try:
+            report_dir = default_reports_dir()
+            report_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            json_path = report_dir / f"dependency_analysis_{stamp}.json"
+            json_path.write_text(
+                json.dumps(
+                    {
+                        "static": static,
+                        "dependency": dependency,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            csv_path = report_dir / f"dependency_analysis_{stamp}.csv"
+            with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                import csv
+
+                writer = csv.writer(handle)
+                writer.writerow(
+                    ["from_mod", "to_mod", "asset_path", "confidence"]
+                )
+                for edge in dependency.get("edges") or []:
+                    if not isinstance(edge, dict):
+                        continue
+                    writer.writerow(
+                        [
+                            edge.get("from_mod") or "",
+                            edge.get("to_mod") or "",
+                            edge.get("asset_path") or "",
+                            edge.get("confidence") or "",
+                        ]
+                    )
+            return json_path
+        except OSError:
+            return None
+
+    def _show_dependency_results(self, static: dict, dependency: dict) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_t("dep_analysis_title"))
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            geo = screen.availableGeometry()
+            dlg.resize(
+                max(980, min(1320, int(geo.width() * 0.9))),
+                max(620, min(820, int(geo.height() * 0.88))),
+            )
+        else:
+            dlg.resize(1200, 760)
+        dlg.setMinimumSize(880, 560)
+        lay = QVBoxLayout(dlg)
+        lay.setSpacing(10)
+
+        edges = [e for e in dependency.get("edges") or [] if isinstance(e, dict)]
+        unresolved = [
+            u for u in dependency.get("unresolved_refs") or [] if isinstance(u, dict)
+        ]
+        errors = [e for e in dependency.get("parse_errors") or [] if isinstance(e, dict)]
+        mods = len(dependency.get("paks") or [])
+        summary = QLabel(
+            _t(
+                "dep_summary_line",
+                mods=mods,
+                edges=len(edges),
+                unresolved=len(unresolved),
+                errors=len(errors),
+            )
+        )
+        summary.setObjectName("cardTitle")
+        summary.setWordWrap(True)
+        lay.addWidget(summary)
+
+        def make_table(
+            headers: list[str], rows: list[list[str]], stretch_cols: list[int]
+        ) -> QTableWidget:
+            table = QTableWidget(len(rows), len(headers))
+            table.setHorizontalHeaderLabels(headers)
+            table.verticalHeader().setVisible(False)
+            table.setSelectionBehavior(QAbstractItemView.SelectRows)
+            table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            table.setAlternatingRowColors(True)
+            table.horizontalHeader().setSectionResizeMode(
+                QHeaderView.ResizeToContents
+            )
+            for col in stretch_cols:
+                table.horizontalHeader().setSectionResizeMode(col, QHeaderView.Stretch)
+            for row, values in enumerate(rows):
+                for col, value in enumerate(values):
+                    table.setItem(row, col, QTableWidgetItem(value or "—"))
+            return table
+
+        tabs = QTabWidget()
+        edges_table = make_table(
+            [
+                _t("dep_col_source"),
+                _t("dep_col_target"),
+                _t("dep_col_asset"),
+                _t("dep_col_confidence"),
+            ],
+            [
+                [
+                    str(edge.get("from_mod") or ""),
+                    str(edge.get("to_mod") or ""),
+                    str(edge.get("asset_path") or ""),
+                    str(edge.get("confidence") or ""),
+                ]
+                for edge in edges
+            ],
+            [2],
+        )
+        tabs.addTab(edges_table, _t("dep_tab_edges"))
+
+        unresolved_table = make_table(
+            [
+                _t("dep_col_source"),
+                _t("dep_col_asset"),
+                _t("dep_col_ref"),
+            ],
+            [
+                [
+                    str(item.get("mod") or ""),
+                    str(item.get("asset") or ""),
+                    str(item.get("ref") or ""),
+                ]
+                for item in unresolved
+            ],
+            [2],
+        )
+        tabs.addTab(unresolved_table, _t("dep_tab_unresolved"))
+
+        errors_table = make_table(
+            [
+                _t("dep_col_source"),
+                _t("dep_col_asset"),
+                _t("dep_col_error"),
+            ],
+            [
+                [
+                    str(item.get("mod") or ""),
+                    str(item.get("asset") or ""),
+                    str(item.get("error") or ""),
+                ]
+                for item in errors
+            ],
+            [2],
+        )
+        tabs.addTab(errors_table, _t("dep_tab_errors"))
+
+        try:
+            from .planner.planner import build_plan
+
+            plan = build_plan(static, dependency)
+            groups = plan.as_dict().get("deploy_groups") or []
+            self.analysis_static = static
+            self.analysis_dependency = dependency
+            self.analysis_plan = plan.as_dict()
+        except Exception:  # noqa: BLE001 - preview is best-effort
+            groups = []
+            self.analysis_static = static
+            self.analysis_dependency = dependency
+            self.analysis_plan = None
+        reason_map = {
+            "isolated": _t("dep_reason_isolated"),
+            "dependency": _t("dep_reason_dependency"),
+            "strong_dependency": _t("dep_reason_strong_dependency"),
+            "user_group": _t("dep_reason_user_group"),
+        }
+        groups_note = QLabel(_t("dep_group_preview_note"))
+        groups_note.setObjectName("hint")
+        groups_note.setWordWrap(True)
+        groups_box = QWidget()
+        groups_lay = QVBoxLayout(groups_box)
+        groups_lay.setContentsMargins(0, 0, 0, 0)
+        groups_lay.setSpacing(6)
+        groups_lay.addWidget(groups_note)
+        groups_table = make_table(
+            [
+                _t("dep_col_group"),
+                _t("dep_col_reason"),
+                _t("dep_col_files"),
+                _t("dep_col_evidence"),
+            ],
+            [
+                [
+                    str(group.get("group_id") or ""),
+                    reason_map.get(str(group.get("reason") or ""), str(group.get("reason") or "")),
+                    ", ".join(str(name) for name in group.get("mods") or []),
+                    "；".join(str(line) for line in group.get("evidence") or []),
+                ]
+                for group in groups
+                if isinstance(group, dict)
+            ],
+            [2, 3],
+        )
+        groups_lay.addWidget(groups_table)
+        tabs.addTab(groups_box, _t("dep_tab_groups"))
+        lay.addWidget(tabs)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        if self.dep_report_path is not None:
+            report_btn = QPushButton(_t("open_report"))
+            report_btn.setObjectName("secondary")
+            report_btn.setCursor(Qt.PointingHandCursor)
+            report_btn.clicked.connect(self._open_report_folder)
+            actions.addWidget(report_btn)
+        actions.addStretch()
+        if self.analysis_plan is not None:
+            start_btn = QPushButton(_t("dep_start_test_button"))
+            start_btn.setObjectName("primary")
+            start_btn.setCursor(Qt.PointingHandCursor)
+            start_btn.clicked.connect(
+                lambda: self._start_test_from_analysis(dlg)
+            )
+            actions.addWidget(start_btn)
+        close_btn = QPushButton(_t("nexus_close"))
+        close_btn.setObjectName("secondary" if self.analysis_plan is not None else "primary")
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.clicked.connect(dlg.accept)
+        actions.addWidget(close_btn)
+        lay.addLayout(actions)
+        dlg.setStyleSheet(fluent_qss(self.dark))
+        dlg.exec()
 
     def _set_running_ui(self, running: bool) -> None:
         self.cta.setEnabled(not running)
@@ -1597,13 +3461,25 @@ class MainWindow(QMainWindow):
         )
         self.stop_btn.setVisible(running)
         self.folder_edit.setEnabled(not running)
+        if hasattr(self, "dep_btn"):
+            self.dep_btn.setEnabled(
+                not running and not self.nexus_busy and not self.dep_busy
+            )
+        if hasattr(self, "mod_select_btn"):
+            self.mod_select_btn.setEnabled(not running and not self.nexus_busy)
+        if hasattr(self, "mod_detect_btn"):
+            self.mod_detect_btn.setEnabled(not running and not self.nexus_busy)
         self.progress.setVisible(running)
         self.run_status.setVisible(running)
         self.stats_widget.setVisible(False)
         self.results_box.setVisible(False)
-        self.report_btn.setEnabled(False)
-        self.quarantine_btn.setEnabled(False)
         self.adv_btn.setEnabled(not running)
+        if hasattr(self, "calib_btn"):
+            self.calib_btn.setEnabled(not running and not self.nexus_busy)
+        if hasattr(self, "nexus_check_btn"):
+            enabled = not running and not self.nexus_busy
+            self.nexus_check_btn.setEnabled(enabled)
+            self.nexus_identify_btn.setEnabled(enabled)
         if running:
             self.progress.setRange(0, 1)
             self.progress.setValue(0)
@@ -1695,12 +3571,6 @@ class MainWindow(QMainWindow):
                 skipped=summary.get("skipped") or 0,
             )
         self._populate_result_rows(ok_line)
-        report_path = summary.get("csv_path") or summary.get("v2_report") or ""
-        if report_path:
-            self.report_btn.setEnabled(True)
-            self.quarantine_btn.setEnabled(
-                bool(summary.get("quarantine_dir"))
-            )
         self.cta.setText(_t("rerun_test"))
         self.cta.setEnabled(True)
         self._set_status(
@@ -1819,7 +3689,11 @@ class MainWindow(QMainWindow):
     def _open_report_folder(self) -> None:
         audit("open_report_qt")
         path: Path | None = None
-        if self.summary:
+        if self.dep_report_path is not None:
+            dep_parent = Path(self.dep_report_path).parent
+            if dep_parent.is_dir():
+                path = dep_parent
+        elif self.summary:
             for key in ("csv_path", "json_path", "v2_report"):
                 if self.summary.get(key):
                     p = Path(str(self.summary[key]))
@@ -1865,35 +3739,77 @@ class MainWindow(QMainWindow):
             return
         os.startfile(str(path))  # type: ignore[attr-defined]
 
+    def _find_backup_dir(self) -> Path | None:
+        if self.summary and self.summary.get("backup_dir"):
+            path = Path(str(self.summary["backup_dir"]))
+            if path.is_dir():
+                return path
+        if self.cfg_data.get("backup_dir"):
+            path = Path(str(self.cfg_data["backup_dir"]))
+            if path.is_dir():
+                return path
+        default = default_backup_dir()
+        return default if default.is_dir() else None
+
+    def _open_backup_folder(self) -> None:
+        backup_dir = self._find_backup_dir()
+        if backup_dir is None or not backup_dir.is_dir():
+            QMessageBox.information(
+                self,
+                _t("open_backup"),
+                self._local(
+                    "还没有备份目录。测试开始时会自动生成。",
+                    "No backup folder yet. One is created automatically when a test starts.",
+                ),
+            )
+            return
+        os.startfile(str(backup_dir))  # type: ignore[attr-defined]
+
     def _local(self, zh: str, en: str) -> str:
         return en if self.language == "en" else zh
 
     def _restore_backup(self) -> None:
         audit("restore_backup_qt")
-        backup_dir: Path | None = None
-        if self.summary and self.summary.get("backup_dir"):
-            backup_dir = Path(str(self.summary["backup_dir"]))
-        elif self.cfg_data.get("backup_dir"):
-            backup_dir = Path(str(self.cfg_data["backup_dir"]))
-        if backup_dir is None:
-            backup_dir = default_backup_dir()
-        if not (backup_dir / "manifest.json").is_file():
+        backup_dir = self._find_backup_dir()
+        if backup_dir is None or not (backup_dir / "manifest.json").is_file():
             QMessageBox.warning(
                 self,
                 self._local("未找到备份", "Backup not found"),
                 self._local(
-                    f"未找到备份清单：{backup_dir}",
-                    f"Backup manifest not found: {backup_dir}",
+                    "还没有可用的备份清单。运行一次测试后会自动生成。",
+                    "No backup manifest is available yet. Run a test to create one.",
                 ),
             )
             return
-        mod_dir: Path | None = None
-        if self.mod_dir_path:
+        try:
+            manifest = json.loads(
+                (backup_dir / "manifest.json").read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            QMessageBox.critical(
+                self, self._local("还原失败", "Restore failed"), str(exc)
+            )
+            return
+        manifest_mod_dir = str(manifest.get("mod_dir") or "")
+        created_at = str(manifest.get("created_at") or "")
+        backup_enabled = bool(manifest.get("backup_enabled"))
+        files = manifest.get("files")
+        files = files if isinstance(files, dict) else {}
+        mod_count = sum(
+            1
+            for name, meta in files.items()
+            if isinstance(meta, dict)
+            and not meta.get("dir")
+            and (backup_dir / name).is_file()
+        )
+        recorded_dir = Path(manifest_mod_dir) if manifest_mod_dir else None
+        if recorded_dir is not None and recorded_dir.is_dir():
+            mod_dir = recorded_dir
+        elif self.mod_dir_path:
             mod_dir = Path(self.mod_dir_path)
-        if mod_dir is None or not mod_dir.is_dir():
+        else:
             info = self._detect()
-            if info is not None:
-                mod_dir = detect_mod_dir(info)
+            mod_dir = detect_mod_dir(info) if info is not None else None
         if mod_dir is None or not mod_dir.is_dir():
             QMessageBox.warning(
                 self,
@@ -1907,16 +3823,42 @@ class MainWindow(QMainWindow):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self._local("确认还原", "Confirm restore"))
-        dlg.resize(560, 260)
+        dlg.resize(640, 360)
         lay = QVBoxLayout(dlg)
-        info = QLabel(
+        detail_lines = [
+            self._local("备份位置：", "Backup location: ") + str(backup_dir),
+        ]
+        if created_at:
+            detail_lines.append(self._local("备份时间：", "Backup time: ") + created_at)
+        detail_lines.append(
             self._local(
-                f"将从：\n{backup_dir}\n\n还原非系统 .pak 文件到：\n{mod_dir}",
-                f"Restore non-system .pak files from:\n{backup_dir}\n\nto:\n{mod_dir}",
+                f"备份内容：{mod_count} 个 .pak 文件",
+                f"Backup contents: {mod_count} .pak file(s)",
             )
         )
+        detail_lines.append(
+            self._local("将还原到：", "Restore to: ") + str(mod_dir)
+        )
+        if recorded_dir is not None and recorded_dir != mod_dir:
+            detail_lines.append(
+                self._local(
+                    f"注意：备份记录中的目录为 {recorded_dir}，与当前目标不同。",
+                    f"Note: the backup was recorded for {recorded_dir}, which differs from the current target.",
+                )
+            )
+        info = QLabel("\n".join(detail_lines))
         info.setWordWrap(True)
         lay.addWidget(info)
+        if not backup_enabled or mod_count == 0:
+            warn = QLabel(
+                self._local(
+                    "此备份没有保存任何 .pak 文件（测试时可能关闭了备份）。",
+                    "This backup contains no .pak files (backups may have been disabled for that run).",
+                )
+            )
+            warn.setObjectName("hint")
+            warn.setWordWrap(True)
+            lay.addWidget(warn)
         remove_new = QCheckBox(
             self._local(
                 "完全还原（同时移除备份后新增的非系统 Mod）",
@@ -1924,11 +3866,18 @@ class MainWindow(QMainWindow):
             )
         )
         lay.addWidget(remove_new)
+        open_dir = QPushButton(_t("open_backup"))
+        open_dir.setObjectName("secondary")
+        open_dir.setCursor(Qt.PointingHandCursor)
+        open_dir.clicked.connect(
+            lambda: os.startfile(str(backup_dir))  # type: ignore[attr-defined]
+        )
         btns = QHBoxLayout()
         ok_btn = QPushButton(self._local("开始还原", "Restore now"))
         ok_btn.setObjectName("primary")
         cancel_btn = QPushButton(self._local("取消", "Cancel"))
         cancel_btn.setObjectName("secondary")
+        btns.addWidget(open_dir)
         btns.addStretch()
         btns.addWidget(cancel_btn)
         btns.addWidget(ok_btn)
@@ -1972,19 +3921,29 @@ class MainWindow(QMainWindow):
             self,
             "Nexus API Key",
             self._local(
-                "登录 Nexus → Personal API Key → 生成/复制 → 粘贴到上方输入框并保存。",
-                "Log in to Nexus → Personal API Key → create/copy → paste it above and save.",
+                "打开页面后请滚动到最底部，在 Personal API Key 区域点 Generate/Create "
+                "生成密钥并复制，然后粘贴到上方输入框并保存。",
+                "After the page opens, scroll all the way to the bottom, "
+                "use Generate/Create in the Personal API Key section, copy it, "
+                "then paste it into the field above and save.",
             ),
         )
 
     def _open_log_dialog(self) -> None:
+        lines = list(self.log_lines)
+        if not lines:
+            try:
+                raw = Path(LOG_FILE).read_text(encoding="utf-8", errors="replace")
+                lines = raw.splitlines()[-500:]
+            except OSError:
+                pass
         dlg = QDialog(self)
         dlg.setWindowTitle(_t("view_log"))
         dlg.resize(760, 520)
         lay = QVBoxLayout(dlg)
         text = QPlainTextEdit()
         text.setReadOnly(True)
-        text.setPlainText("\n".join(self.log_lines) or _t("log_empty"))
+        text.setPlainText("\n".join(lines) or _t("log_empty"))
         lay.addWidget(text)
         close = QPushButton(_t("stop"))
         close.setObjectName("secondary")
@@ -2052,7 +4011,8 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ lifecycle
     def closeEvent(self, event) -> None:  # noqa: N802
-        if not self.running:
+        if not self.running and not self.nexus_busy and not self.dep_busy:
+            self._persist_current_prefs()
             event.accept()
             return
         answer = QMessageBox.question(
@@ -2070,7 +4030,7 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def _try_quit_after_cancel(self) -> None:
-        if not self.running:
+        if not self.running and not self.nexus_busy and not self.dep_busy:
             self.close()
         else:
             QTimer.singleShot(1500, self._try_quit_after_cancel)
@@ -2083,6 +4043,12 @@ class MainWindow(QMainWindow):
             self._show_results(self.summary)
         else:
             self._set_running_ui(False)
+        if hasattr(self, "nexus_state_label"):
+            self.nexus_state_label.setText(self.nexus_state_text)
+        if hasattr(self, "nexus_view_btn"):
+            self.nexus_view_btn.setVisible(bool(self.nexus_results))
+        if hasattr(self, "nexus_check_btn"):
+            self._set_nexus_busy_ui(self.nexus_busy)
 
 
 def main() -> int:
@@ -2101,8 +4067,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(SHORT_NAME)
     app.setApplicationVersion(VERSION)
-    load_bundled_fonts()
-    app.setFont(QFont("MiSans", 10))
+    app.setFont(QFont("Segoe UI", 10))
     app.setStyle("Fusion")
     app.setWindowIcon(_app_icon())
 

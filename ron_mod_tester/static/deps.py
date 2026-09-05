@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from ..safety import is_mod_pak
 from .asset_worker import UAssetCliReader
 from .models import PakFileEntry, PakInventory
 from .pak_repak import RepakBackend
@@ -108,6 +109,8 @@ def scan_dependencies(
     asset_limit: int = 0,
     workers: int = 4,
     log: Callable[[str], None] | None = None,
+    progress: Callable[[int, int, str], None] | None = None,
+    only_paks: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Parse uasset import tables and build cross-pak dependency edges."""
 
@@ -118,7 +121,15 @@ def scan_dependencies(
     from .analyzer import _iter_paks
 
     backend = RepakBackend(repak_exe)
-    paks = _iter_paks(folder)
+    if only_paks is not None:
+        paks = [
+            pak
+            for pak in only_paks
+            if pak.is_file() and is_mod_pak(pak.name)
+        ]
+        paks = sorted(paks, key=lambda p: str(p).lower())
+    else:
+        paks = _iter_paks(folder)
     emit(f"检测到 {len(paks)} 个非系统 .pak")
 
     inventories: list[PakInventory] = []
@@ -145,6 +156,17 @@ def scan_dependencies(
     unresolved: list[dict[str, Any]] = []
     parse_errors: list[dict[str, Any]] = []
     parsed_assets = 0
+    total_assets = 0
+    done_assets = 0
+
+    if progress is not None:
+        for inv in inventories:
+            stems = _uasset_stems(inv)
+            if asset_limit > 0:
+                stems = stems[:asset_limit]
+            total_assets += len(stems)
+        if total_assets <= 0:
+            total_assets = max(len(inventories), 1)
 
     for inv in inventories:
         stems = _uasset_stems(inv)
@@ -223,10 +245,14 @@ def scan_dependencies(
             return True, my_refs, my_unresolved, []
 
         with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-            futures = [pool.submit(handle_stem, stem) for stem in stems]
+            future_map = {
+                pool.submit(handle_stem, stem): stem for stem in stems
+            }
             done = 0
-            for future in as_completed(futures):
+            for future in as_completed(future_map):
                 done += 1
+                stem = future_map[future]
+                done_assets += 1
                 ok, refs, unresolved_for_asset, errs = future.result()
                 if ok:
                     parsed_assets += 1
@@ -243,6 +269,12 @@ def scan_dependencies(
                 parse_errors.extend(errs)
                 if done % 25 == 0 or done == len(stems):
                     emit(f"    进度 {done}/{len(stems)}")
+                if progress is not None:
+                    progress(
+                        done_assets,
+                        max(total_assets, 1),
+                        f"{inv.filename} · {Path(stem).name}",
+                    )
 
     # SCC on unique from->to pairs.
     graph: dict[str, set[str]] = defaultdict(set)

@@ -6,6 +6,9 @@ import subprocess
 from pathlib import Path
 
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 class RepakBackend:
     """Pak backend backed by the ``repak`` CLI."""
 
@@ -43,6 +46,7 @@ class RepakBackend:
                 errors="replace",
                 timeout=timeout,
                 check=False,
+                creationflags=_NO_WINDOW,
             )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(f"repak 处理超时：{pak.name}") from exc
@@ -79,6 +83,7 @@ class RepakBackend:
                 capture_output=True,
                 timeout=300,
                 check=False,
+                creationflags=_NO_WINDOW,
             )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(f"repak get 超时：{pak.name} {internal_path}") from exc

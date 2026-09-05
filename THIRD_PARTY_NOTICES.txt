@@ -1,22 +1,25 @@
-RoNCT v0.3.0 - Third-Party Notices
+RoNCT v0.4.0 - Third-Party Notices
+
+The release archive bundles the following third-party components under their
+own licenses. Copies of each license are included next to the components in
+`tools/`.
 
 This software bundles the following third-party components:
 
 1. PySide6 (Qt for Python) / Qt
-   - Used under the GNU Lesser General Public License v3 (LGPL-3.0).
+   - Dynamically linked under the GNU Lesser General Public License v3
+     (LGPL-3.0).
    - Project: https://wiki.qt.io/Qt_for_Python
    - License: https://www.gnu.org/licenses/lgpl-3.0.html
 
-2. MiSans font (Regular / Medium / Semibold)
-   - Copyright Xiaomi. Free for commercial use.
-   - Official site: https://hyperos.mi.com/font
-   - License PDF is included in this package as MiSans_License.pdf
-
-3. repak
+2. repak
    - See tools/repak/LICENSE-APACHE and tools/repak/LICENSE-MIT.
 
-4. UAssetCLI / UAssetAPI
+3. UAssetCLI / UAssetAPI / Newtonsoft.Json / ZstdSharp
    - See tools/uassetcli/LICENSE and tools/uassetcli/NOTICE.md.
 
-5. Portable .NET Runtime (dotnet)
+4. Portable .NET Runtime
    - See tools/dotnet/LICENSE.txt and tools/dotnet/ThirdPartyNotices.txt.
+
+Source code for PySide6/Qt is available from the upstream projects listed
+above. repak and UAssetCLI are invoked as separate command-line tools.

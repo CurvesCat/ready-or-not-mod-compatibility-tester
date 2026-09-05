@@ -40,6 +40,7 @@ def analyze_folder(
     folder: Path,
     repak_exe: str | Path | None = None,
     log: Callable[[str], None] | None = None,
+    only_paks: list[Path] | None = None,
 ) -> StaticAnalysis:
     """Scan every non-system pak in ``folder`` and detect path conflicts."""
 
@@ -48,7 +49,15 @@ def analyze_folder(
             log(text)
 
     backend = RepakBackend(repak_exe)
-    paks = _iter_paks(folder)
+    if only_paks is not None:
+        paks = [
+            pak
+            for pak in only_paks
+            if pak.is_file() and is_mod_pak(pak.name)
+        ]
+        paks = sorted(paks, key=lambda p: str(p).lower())
+    else:
+        paks = _iter_paks(folder)
     emit(f"检测到 {len(paks)} 个非系统 .pak")
 
     inventories: list[PakInventory] = []

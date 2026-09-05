@@ -1,10 +1,6 @@
 # RoNCT - Ready or Not Mod Compatibility Tester
 
 <p align="center">
-  <img src="assets/logo.png" alt="RoNCT" width="128">
-</p>
-
-<p align="center">
   <strong>Automatically test <em>Ready or Not</em> `.pak` mods after game updates.</strong><br>
   Dependency-aware game launches · asset-level conflict analysis · CSV/JSON reports
 </p>

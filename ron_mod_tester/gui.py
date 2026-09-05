@@ -105,6 +105,7 @@ class App:
         self.var_backup_max_total = IntVar(value=10000)
         self.var_source = StringVar(value="folder")
         self.var_disposition = StringVar(value="quarantine")
+        self.var_nexus_key = StringVar(value="")
         self.mod_files: list[Path] = []
         self.exclude_files: list[Path] = []
 
@@ -114,6 +115,7 @@ class App:
         self.running = False
         self.calibrating = False
         self._close_when_done = False
+        self._advanced_shown = False
         self.last_summary: dict | None = None
         self._row_index = 0
 
@@ -290,6 +292,104 @@ class App:
             anchor="w",
         )
 
+    def _build_quick_start(self, main) -> None:
+        quick = ttk.LabelFrame(main, text=t("quick_start"), padding=10)
+        quick.pack(fill=X, pady=(0, 8))
+        quick.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            quick, text=t("choose_mods"), style="Title.TLabel"
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
+        ttk.Label(quick, text=t("mod_folder")).grid(
+            row=1, column=0, sticky="e", padx=(0, 6), pady=4
+        )
+        ttk.Entry(quick, textvariable=self.var_mod_folder).grid(
+            row=1, column=1, sticky="ew", padx=4, pady=4
+        )
+        ttk.Button(quick, text=t("browse"), command=self._browse_mod_folder).grid(
+            row=1, column=2, sticky="w", padx=(6, 0), pady=4
+        )
+        ttk.Label(
+            quick, text=t("mods_hint"), style="Sub.TLabel"
+        ).grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 8))
+
+        action_row = ttk.Frame(quick)
+        action_row.grid(row=3, column=0, columnspan=3, sticky="ew")
+        self.btn_oneclick = ttk.Button(
+            action_row,
+            text=t("one_click_test"),
+            command=self._v2_test,
+            style="Accent.TButton",
+        )
+        self.btn_oneclick.pack(side=LEFT)
+        self.btn_advanced = ttk.Button(
+            action_row,
+            text=t("show_advanced"),
+            command=self._toggle_advanced,
+        )
+        self.btn_advanced.pack(side=RIGHT)
+
+        nexus_row = ttk.Frame(quick)
+        nexus_row.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        nexus_row.columnconfigure(1, weight=1)
+        ttk.Label(
+            nexus_row, text=t("nexus_key_label"), style="Sub.TLabel"
+        ).grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Entry(nexus_row, textvariable=self.var_nexus_key).grid(
+            row=1, column=0, sticky="ew", padx=(0, 6)
+        )
+        ttk.Button(
+            nexus_row, text=t("save_nexus_key"), command=self._save_nexus_key
+        ).grid(row=1, column=1, sticky="w")
+        ttk.Button(
+            nexus_row, text=t("get_nexus_key"), command=self._open_nexus_api_page
+        ).grid(row=1, column=2, sticky="w", padx=(6, 0))
+
+    def _set_advanced_visible(self, visible: bool) -> None:
+        widgets = (self.desc_label, self.cfg, self.opt, self.btns)
+        if visible:
+            for widget in widgets:
+                if not widget.winfo_ismapped():
+                    widget.pack(before=self.progress, fill="X", pady=4)
+            if hasattr(self, "btn_advanced"):
+                self.btn_advanced.configure(text=t("hide_advanced"))
+        else:
+            for widget in widgets:
+                if widget.winfo_ismapped():
+                    widget.pack_forget()
+            if hasattr(self, "btn_advanced"):
+                self.btn_advanced.configure(text=t("show_advanced"))
+        self._advanced_shown = visible
+
+    def _toggle_advanced(self) -> None:
+        self._set_advanced_visible(not self._advanced_shown)
+
+    def _save_nexus_key(self) -> None:
+        CONFIG_PATH.mkdir(parents=True, exist_ok=True)
+        data: dict = {}
+        if CONFIG_FILE.is_file():
+            try:
+                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                data = {}
+        data["nexus_api_key"] = self.var_nexus_key.get().strip()
+        try:
+            CONFIG_FILE.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+        messagebox.showinfo(t("one_click_test"), t("nexus_key_saved"))
+
+    def _open_nexus_api_page(self) -> None:
+        url = "https://www.nexusmods.com/settings/api-keys"
+        os.startfile(url)  # type: ignore[attr-defined]
+        messagebox.showinfo(
+            "Nexus API Key",
+            "登录 Nexus → 找到 Personal API Key → 生成/复制 → 粘贴到上面的输入框并保存。",
+        )
+
     def _build_ui(self) -> None:
         if hasattr(self, "_scroll_canvas"):
             self._scroll_canvas.destroy()
@@ -364,15 +464,18 @@ class App:
             top_bar, text=t("about"), command=self._open_about
         )
         self.btn_about.pack(side=RIGHT, padx=(0, 6))
-        ttk.Label(
+        self._build_quick_start(main)
+        self.desc_label = ttk.Label(
             main,
             text=t("app_desc"),
             wraplength=1000,
             justify=LEFT,
             style="Sub.TLabel",
-        ).pack(anchor="w", pady=(0, 8))
+        )
+        self.desc_label.pack(anchor="w", pady=(0, 8))
 
-        cfg = ttk.LabelFrame(main, text=t("path_config"), padding=6)
+        self.cfg = ttk.LabelFrame(main, text=t("path_config"), padding=6)
+        cfg = self.cfg
         cfg.pack(fill=X)
         cfg.columnconfigure(2, weight=1)
 
@@ -406,7 +509,8 @@ class App:
         )
         self._update_selection_label()
 
-        opt = ttk.LabelFrame(main, text=t("test_options"), padding=6)
+        self.opt = ttk.LabelFrame(main, text=t("test_options"), padding=6)
+        opt = self.opt
         opt.pack(fill=X, pady=(8, 0))
         for col in range(6):
             opt.columnconfigure(col, weight=1)
@@ -474,7 +578,8 @@ class App:
             row=5, column=0, sticky="w", **pad
         )
 
-        btns = ttk.Frame(main)
+        self.btns = ttk.Frame(main)
+        btns = self.btns
         btns.pack(fill=X, pady=8)
         self.btn_start = ttk.Button(
             btns, text=t("start_test"), command=self._start, style="Accent.TButton"
@@ -559,6 +664,7 @@ class App:
         ).pack(
             anchor="e", pady=(4, 0)
         )
+        self._set_advanced_visible(False)
 
         def _bind_page_scroll(target) -> None:
             target.bind("<MouseWheel>", _on_wheel)
@@ -753,6 +859,7 @@ class App:
         self.cancel_event.clear()
         self.btn_start.configure(state="disabled")
         self.btn_v2.configure(state="disabled")
+        self.btn_oneclick.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.status_var.set(t("正在启动测试…"))
@@ -859,6 +966,7 @@ class App:
         self.cancel_event.clear()
         self.btn_start.configure(state="disabled")
         self.btn_v2.configure(state="disabled")
+        self.btn_oneclick.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.status_var.set(t("one_click_test_running"))
@@ -923,6 +1031,7 @@ class App:
         self.cancel_event.clear()
         self.btn_start.configure(state="disabled")
         self.btn_v2.configure(state="disabled")
+        self.btn_oneclick.configure(state="disabled")
         self.btn_calibrate.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.status_var.set(t("正在自动测时（会启动一次游戏）…"))
@@ -1026,6 +1135,7 @@ class App:
         self.last_summary = summary
         self.btn_start.configure(state="normal")
         self.btn_v2.configure(state="normal")
+        self.btn_oneclick.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         self.btn_report.configure(state="normal")
@@ -1052,6 +1162,7 @@ class App:
         self.calibrating = False
         self.btn_start.configure(state="normal")
         self.btn_v2.configure(state="normal")
+        self.btn_oneclick.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         if not result:
@@ -1101,6 +1212,7 @@ class App:
         self.calibrating = False
         self.btn_start.configure(state="normal")
         self.btn_v2.configure(state="normal")
+        self.btn_oneclick.configure(state="normal")
         self.btn_calibrate.configure(state="normal")
         self.btn_stop.configure(state="disabled")
         self.status_var.set(t("出错：") + message)
@@ -1461,6 +1573,8 @@ class App:
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return
+        if data.get("nexus_api_key"):
+            self.var_nexus_key.set(str(data["nexus_api_key"]))
         for var, key in (
             (self.var_mod_folder, "mod_folder"),
             (self.var_game_root, "game_root"),

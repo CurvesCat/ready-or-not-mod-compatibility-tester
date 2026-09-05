@@ -812,8 +812,6 @@ class App:
             warmup=bool(self.var_warmup.get()),
             extra_args=self.var_extra_args.get().strip(),
         )
-        self._save_config(config)
-
         tools: dict = {}
         if CONFIG_FILE.is_file():
             try:
@@ -833,6 +831,7 @@ class App:
                 + ", ".join(missing),
             )
             return
+        self._save_config(config)
 
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -1029,7 +1028,8 @@ class App:
         messagebox.showinfo(
             t("测试完成"),
             t("测试已完成。") + "\n\n"
-            f"可用 {summary['ok']} / 不可用 {summary['fail']} / 错误 {summary['error']}\n\n"
+            f"可用 {summary['ok']} / 不可用 {summary['fail']} / 错误 {summary['error']} / "
+            f"已存在 {summary['conflict']} / 跳过 {summary['skipped']}\n\n"
             f"报告目录：{Path(summary['csv_path']).parent}",
         )
         if self._close_when_done:

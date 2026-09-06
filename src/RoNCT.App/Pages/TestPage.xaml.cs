@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using RoNCT.App.Services;
+using RoNCT.Core.Analysis;
 using RoNCT.Core.Plan;
 using RoNCT.Core.Scan;
 using RoNCT.Core.Selection;
@@ -124,8 +125,52 @@ public sealed partial class TestPage : Page, ILocalizablePage
             Localizer.T("Action.PlanSummary"), plan.Groups.Count, plan.ConflictCount);
     }
 
-    private void BtnAnalyze_Click(object sender, RoutedEventArgs e) =>
-        LogText.Text = Localizer.T("Action.PipelineSoon");
+    private async void BtnAnalyze_Click(object sender, RoutedEventArgs e)
+    {
+        var items = SelectionItems();
+        if (items.Count == 0)
+        {
+            LogText.Text = Localizer.T("Analysis.None");
+            return;
+        }
+
+        var repak = ResolveRepakExe();
+        if (string.IsNullOrEmpty(repak) || !File.Exists(repak))
+        {
+            LogText.Text = Localizer.T("Analysis.ToolMissing");
+            return;
+        }
+
+        Progress.Visibility = Visibility.Visible;
+        var contents = new Dictionary<string, IReadOnlyList<string>>();
+        foreach (var item in items)
+        {
+            var assets = await PakLister.ListAssetsAsync(repak, item.FilePath);
+            if (assets is not null)
+            {
+                contents[item.FilePath] = assets;
+            }
+        }
+        Progress.Visibility = Visibility.Collapsed;
+
+        var analysis = DependencyAnalyzer.Analyze(contents);
+        LogText.Text = string.Format(
+            Localizer.T("Analysis.Summary"),
+            analysis.TotalAssetPaths,
+            analysis.Overlaps.Count);
+    }
+
+    private static string ResolveRepakExe()
+    {
+        var configured = AppSettings.Current.RepakExe;
+        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        {
+            return configured;
+        }
+
+        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\repak\repak.exe";
+        return File.Exists(known) ? known : configured ?? string.Empty;
+    }
 
     private void ReloadSelection()
     {

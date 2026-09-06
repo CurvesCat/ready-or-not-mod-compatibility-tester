@@ -46,4 +46,58 @@ public sealed class AnalysisTests
 
         Assert.Single(analysis.Overlaps);
     }
+
+    [Fact]
+    public void UePaths_ToGamePath_StripsContentPrefixAndExtension()
+    {
+        var path = "ReadyOrNot/Content/Mods/Weapons/Gun.uasset";
+        Assert.Equal("/Game/Mods/Weapons/Gun", UePaths.ToGamePath(path));
+    }
+
+    [Fact]
+    public void ProviderMap_MatchesReferenceAcrossMods_WithHighConfidence()
+    {
+        var inventories = new[]
+        {
+            new PakInventory("a.pak", "a.pak", new[] { "Content/Mods/Weapons/Gun.uasset" }),
+            new PakInventory("b.pak", "b.pak", new[] { "Content/Mods/Weapons/Gun.uasset" }),
+        };
+        var map = ProviderMap.Build(inventories);
+
+        var (mod, confidence) = ProviderMap.MatchReference("/Game/Mods/Weapons/Gun", map, "b.pak");
+
+        Assert.Equal("a.pak", mod);
+        Assert.Equal("high", confidence);
+    }
+
+    [Fact]
+    public void StaticConflict_MarksOverwrite_WhenContentDiffers()
+    {
+        var inventories = new[]
+        {
+            new PakInventory("a.pak", "a.pak", new[] { "Content/Shared.uasset" }),
+            new PakInventory("b.pak", "b.pak", new[] { "Content/Shared.uasset" }),
+        };
+        var conflicts = StaticConflictAnalyzer.Analyze(
+            inventories,
+            (_, _) => System.Text.Encoding.UTF8.GetBytes("version-a"));
+
+        var conflict = Assert.Single(conflicts);
+        Assert.Equal(StaticConflictKind.Duplicate, conflict.Kind);
+        Assert.Equal(2, conflict.Providers.Count);
+    }
+
+    [Fact]
+    public void StaticConflict_MarksDuplicate_WhenContentIdentical()
+    {
+        var inventories = new[]
+        {
+            new PakInventory("a.pak", "a.pak", new[] { "Content/Shared.uasset" }),
+            new PakInventory("b.pak", "b.pak", new[] { "Content/Shared.uasset" }),
+        };
+        var content = System.Text.Encoding.UTF8.GetBytes("same");
+        var conflicts = StaticConflictAnalyzer.Analyze(inventories, (_, _) => content);
+
+        Assert.Equal(StaticConflictKind.Duplicate, Assert.Single(conflicts).Kind);
+    }
 }

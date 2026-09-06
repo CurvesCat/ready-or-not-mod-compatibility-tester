@@ -142,29 +142,33 @@ public sealed partial class TestPage : Page, ILocalizablePage
         }
 
         var repak = ResolveRepakExe();
-        if (string.IsNullOrEmpty(repak) || !File.Exists(repak))
+        var dotnet = ResolveDotnetExe();
+        var cli = ResolveUAssetCliDll();
+        if (string.IsNullOrEmpty(repak) || !File.Exists(repak) ||
+            string.IsNullOrEmpty(dotnet) || !File.Exists(dotnet) ||
+            string.IsNullOrEmpty(cli) || !File.Exists(cli))
         {
             LogText.Text = Localizer.T("Analysis.ToolMissing");
             return;
         }
 
         Progress.Visibility = Visibility.Visible;
-        var contents = new Dictionary<string, IReadOnlyList<string>>();
-        foreach (var item in items)
-        {
-            var assets = await PakLister.ListAssetsAsync(repak, item.FilePath);
-            if (assets is not null)
-            {
-                contents[item.FilePath] = assets;
-            }
-        }
+        var result = await DependencyScanner.RunAsync(
+            repak,
+            dotnet,
+            cli,
+            string.IsNullOrEmpty(AppSettings.Current.Engine) ? "VER_UE5_4" : AppSettings.Current.Engine,
+            items,
+            AppSettings.Current.AssetLimit > 0 ? AppSettings.Current.AssetLimit : 100);
         Progress.Visibility = Visibility.Collapsed;
 
-        var analysis = DependencyAnalyzer.Analyze(contents);
         LogText.Text = string.Format(
-            Localizer.T("Analysis.Summary"),
-            analysis.TotalAssetPaths,
-            analysis.Overlaps.Count);
+            Localizer.T("Analysis.RunSummary"),
+            result.Paks,
+            result.ParsedAssets,
+            result.Edges,
+            result.Unresolved,
+            result.Conflicts);
     }
 
     private static string ResolveRepakExe()
@@ -176,6 +180,30 @@ public sealed partial class TestPage : Page, ILocalizablePage
         }
 
         var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\repak\repak.exe";
+        return File.Exists(known) ? known : configured ?? string.Empty;
+    }
+
+    private static string ResolveDotnetExe()
+    {
+        var configured = AppSettings.Current.DotnetExe;
+        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        {
+            return configured;
+        }
+
+        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\dotnet10\dotnet.exe";
+        return File.Exists(known) ? known : configured ?? string.Empty;
+    }
+
+    private static string ResolveUAssetCliDll()
+    {
+        var configured = AppSettings.Current.UAssetCliDll;
+        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        {
+            return configured;
+        }
+
+        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\UAssetCLI\UAssetCLI\UAssetCLI.dll";
         return File.Exists(known) ? known : configured ?? string.Empty;
     }
 

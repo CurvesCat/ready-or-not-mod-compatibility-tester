@@ -121,6 +121,11 @@ public sealed partial class MainWindow : Window
         RootGrid.RequestedTheme = elementTheme;
         NavView.RequestedTheme = elementTheme;
         AppTitleBar.RequestedTheme = elementTheme;
+
+        var isDark = RootGrid.ActualTheme == ElementTheme.Dark;
+        var captionForeground = isDark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+        AppWindow.TitleBar.ButtonForegroundColor = captionForeground;
+        AppWindow.TitleBar.ButtonInactiveForegroundColor = captionForeground;
     }
 
     private void LangEnButton_Click(object sender, RoutedEventArgs e)

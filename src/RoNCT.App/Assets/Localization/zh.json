@@ -23,6 +23,7 @@
   "Action.Run": "一键测试",
   "Action.Analyze": "仅分析依赖",
   "Action.PipelineSoon": "测试流水线将在下一阶段接入。",
+  "Action.PlanSummary": "规划了 {0} 个测试组（{1} 处冲突）。",
   "Page.Nexus.Body": "Nexus Mods 识别、确认与前置依赖检查将在这里提供。",
   "Page.Backup.Body": "Mod 目录备份与一键还原将在这里提供。",
   "Page.Quarantine.Body": "从游戏目录移出的不可用 Mod 将在这里列出。",

@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using RoNCT.App.Services;
+using RoNCT.Core.Plan;
+using RoNCT.Core.Scan;
 using RoNCT.Core.Selection;
 
 namespace RoNCT.App.Pages;
@@ -113,8 +115,14 @@ public sealed partial class TestPage : Page, ILocalizablePage
         }
     }
 
-    private void BtnTest_Click(object sender, RoutedEventArgs e) =>
-        LogText.Text = Localizer.T("Action.PipelineSoon");
+    private void BtnTest_Click(object sender, RoutedEventArgs e)
+    {
+        var items = SelectionItems();
+        var conflicts = ConflictScanner.FindConflicts(items);
+        var plan = TestPlanner.Build(items, conflicts);
+        LogText.Text = string.Format(
+            Localizer.T("Action.PlanSummary"), plan.Groups.Count, plan.ConflictCount);
+    }
 
     private void BtnAnalyze_Click(object sender, RoutedEventArgs e) =>
         LogText.Text = Localizer.T("Action.PipelineSoon");

@@ -2,7 +2,7 @@
 
 All notable changes to RoNCT are documented here.
 
-## [Unreleased]
+## [0.4.1] - 2026-09-06
 
 ### Added
 
@@ -10,6 +10,15 @@ All notable changes to RoNCT are documented here.
 - GitHub issue templates, pull-request template, Dependabot, and CI workflow.
 - EditorConfig and Git attributes for consistent formatting.
 - Moved the legacy CLI usage document under `docs/`.
+- `ronct.dev@icloud.com` contact shown in the About dialog and docs.
+
+### Fixed
+
+- Dependency / asset scans now respond to cancellation, so pressing Stop or
+  closing the window no longer waits indefinitely on stuck analysis helpers.
+- Closing during a running task hides the window immediately, cancels the job,
+  and safely force-stops stuck repak/UAssetCLI helper processes after a grace
+  period. Game shutdown and Mod-folder cleanup still follow the normal safe path.
 
 ## [0.4.0] - 2026-09-06
 

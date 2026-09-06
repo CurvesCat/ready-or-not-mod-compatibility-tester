@@ -1,4 +1,4 @@
-RoNCT v0.4.0 - Third-Party Notices
+RoNCT v0.4.1 - Third-Party Notices
 
 The release archive bundles the following third-party components under their
 own licenses. Copies of each license are included next to the components in

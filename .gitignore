@@ -1,0 +1,38 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+
+# IDE / editor
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local app runtime data (never commit secrets or user data)
+config.json
+config*.json
+reports/
+cache/
+backup/
+quarantine/
+logs/
+debug*.log
+*.key
+*.secret
+
+# Packaging staging
+dist/
+staging/
+updates/
+*.zip
+*.exe
+*.msix
+*.msixbundle
+
+# Python legacy remnants (never tracked here)
+__pycache__/
+*.pyc
+

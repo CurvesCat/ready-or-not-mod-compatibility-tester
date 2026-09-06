@@ -62,6 +62,7 @@ def run_v2_gui(
             repak_exe=repak_exe,
             log=log,
             only_paks=manual_paks,
+            cancel_event=cancel_event,
         )
         static_report = static.as_dict()
         dependency = None
@@ -82,6 +83,7 @@ def run_v2_gui(
                 log=log,
                 progress=dep_progress,
                 only_paks=manual_paks,
+                cancel_event=cancel_event,
             )
         else:
             emit("status", "已跳过资产级依赖分析（可在高级选项中重新开启）…")

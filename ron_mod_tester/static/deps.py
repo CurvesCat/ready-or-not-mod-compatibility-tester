@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 import uuid
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -111,6 +111,7 @@ def scan_dependencies(
     log: Callable[[str], None] | None = None,
     progress: Callable[[int, int, str], None] | None = None,
     only_paks: list[Path] | None = None,
+    cancel_event: Any = None,
 ) -> dict[str, Any]:
     """Parse uasset import tables and build cross-pak dependency edges."""
 
@@ -159,8 +160,13 @@ def scan_dependencies(
     total_assets = 0
     done_assets = 0
 
+    def _cancelled() -> bool:
+        return bool(cancel_event is not None and cancel_event.is_set())
+
     if progress is not None:
         for inv in inventories:
+            if _cancelled():
+                break
             stems = _uasset_stems(inv)
             if asset_limit > 0:
                 stems = stems[:asset_limit]
@@ -169,6 +175,8 @@ def scan_dependencies(
             total_assets = max(len(inventories), 1)
 
     for inv in inventories:
+        if _cancelled():
+            break
         stems = _uasset_stems(inv)
         if asset_limit > 0:
             stems = stems[:asset_limit]
@@ -245,36 +253,61 @@ def scan_dependencies(
             return True, my_refs, my_unresolved, []
 
         with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-            future_map = {
-                pool.submit(handle_stem, stem): stem for stem in stems
-            }
+            stem_iter = iter(stems)
+            pending: dict[Any, str] = {}
+
+            def _submit_next() -> bool:
+                try:
+                    stem = next(stem_iter)
+                except StopIteration:
+                    return False
+                pending[pool.submit(handle_stem, stem)] = stem
+                return True
+
+            for _ in range(max(1, workers)):
+                if not _submit_next():
+                    break
             done = 0
-            for future in as_completed(future_map):
-                done += 1
-                stem = future_map[future]
-                done_assets += 1
-                ok, refs, unresolved_for_asset, errs = future.result()
-                if ok:
-                    parsed_assets += 1
-                for mod, confidence, ref in refs:
-                    key = (inv.filename, mod, confidence, ref)
-                    if key not in edges:
-                        edges[key] = {
-                            "from_mod": inv.filename,
-                            "to_mod": mod,
-                            "confidence": confidence,
-                            "asset_path": ref,
-                        }
-                unresolved.extend(unresolved_for_asset)
-                parse_errors.extend(errs)
-                if done % 25 == 0 or done == len(stems):
-                    emit(f"    进度 {done}/{len(stems)}")
-                if progress is not None:
-                    progress(
-                        done_assets,
-                        max(total_assets, 1),
-                        f"{inv.filename} · {Path(stem).name}",
-                    )
+            while pending:
+                if _cancelled():
+                    for future in list(pending):
+                        future.cancel()
+                    break
+                finished, _ = wait(
+                    list(pending), timeout=0.5, return_when=FIRST_COMPLETED
+                )
+                if not finished:
+                    continue
+                for future in finished:
+                    stem = pending.pop(future)
+                    done += 1
+                    done_assets += 1
+                    ok, refs, unresolved_for_asset, errs = future.result()
+                    if ok:
+                        parsed_assets += 1
+                    for mod, confidence, ref in refs:
+                        key = (inv.filename, mod, confidence, ref)
+                        if key not in edges:
+                            edges[key] = {
+                                "from_mod": inv.filename,
+                                "to_mod": mod,
+                                "confidence": confidence,
+                                "asset_path": ref,
+                            }
+                    unresolved.extend(unresolved_for_asset)
+                    parse_errors.extend(errs)
+                    if done % 25 == 0 or done == len(stems):
+                        emit(f"    进度 {done}/{len(stems)}")
+                    if progress is not None:
+                        progress(
+                            done_assets,
+                            max(total_assets, 1),
+                            f"{inv.filename} · {Path(stem).name}",
+                        )
+                if not _cancelled():
+                    while not _cancelled() and _submit_next():
+                        if len(pending) >= max(1, workers):
+                            break
 
     # SCC on unique from->to pairs.
     graph: dict[str, set[str]] = defaultdict(set)

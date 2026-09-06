@@ -810,6 +810,7 @@ class DependencyWorker(QObject):
                 repak_exe=repak_exe,
                 log=status,
                 only_paks=only_paks,
+                cancel_event=self.cancel_event,
             )
             status("正在分析 Mod 间资产依赖（逐个解析资产，可能需要几分钟）…")
 
@@ -827,6 +828,7 @@ class DependencyWorker(QObject):
                 log=status,
                 progress=dep_progress,
                 only_paks=only_paks,
+                cancel_event=self.cancel_event,
             )
             self.finished.emit(
                 {
@@ -924,6 +926,7 @@ class MainWindow(QMainWindow):
         self._calibrate_then_test = False
         self._cal_thread: object | None = None
         self._cal_worker: CalibrationWorker | None = None
+        self._exit_requested = False
 
         self.setWindowTitle(f"{APP_NAME} v{VERSION} - by {AUTHOR}")
         self.setWindowIcon(_app_icon())
@@ -4019,17 +4022,23 @@ class MainWindow(QMainWindow):
             self._persist_current_prefs()
             event.accept()
             return
+        if self._exit_requested:
+            event.ignore()
+            return
         answer = QMessageBox.question(
             self,
             _t("确认退出"),
             _t("任务正在进行，是否停止并退出？"),
         )
         if answer == QMessageBox.Yes:
+            self._exit_requested = True
             self.cancel_event.set()
             self._set_status(_t("stop_wait"), "warn")
             self.stop_btn.setEnabled(False)
+            self.hide()
             event.ignore()
-            QTimer.singleShot(1500, self._try_quit_after_cancel)
+            QTimer.singleShot(500, self._try_quit_after_cancel)
+            QTimer.singleShot(10000, self._force_stop_stuck_tools)
         else:
             event.ignore()
 
@@ -4037,7 +4046,35 @@ class MainWindow(QMainWindow):
         if not self.running and not self.nexus_busy and not self.dep_busy:
             self.close()
         else:
-            QTimer.singleShot(1500, self._try_quit_after_cancel)
+            QTimer.singleShot(750, self._try_quit_after_cancel)
+
+    def _force_stop_stuck_tools(self) -> None:
+        """Kill only the analysis helper processes stuck under this app.
+
+        This unblocks repak/UAssetCLI subprocess waits so the worker can finish
+        its finally/cleanup. Game processes are not killed here; they are closed
+        by the normal cancel path so Mod files are restored safely.
+        """
+        if not self._exit_requested:
+            return
+        if not (self.running or self.dep_busy):
+            return
+        try:
+            import psutil
+        except ImportError:
+            return
+        try:
+            parent = psutil.Process(os.getpid())
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return
+        tool_names = {"repak.exe", "dotnet.exe", "uassetcli.exe"}
+        for child in parent.children(recursive=True):
+            try:
+                name = (child.name() or "").lower()
+                if name in tool_names and child.is_running():
+                    child.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
 
     def _sync_post_build_state(self) -> None:
         self._refresh_folder_hint()

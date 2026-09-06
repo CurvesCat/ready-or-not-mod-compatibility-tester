@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from ..safety import is_mod_pak
 from .models import Conflict, ConflictProvider, PakFileEntry, PakInventory, StaticAnalysis
@@ -41,6 +41,7 @@ def analyze_folder(
     repak_exe: str | Path | None = None,
     log: Callable[[str], None] | None = None,
     only_paks: list[Path] | None = None,
+    cancel_event: Any = None,
 ) -> StaticAnalysis:
     """Scan every non-system pak in ``folder`` and detect path conflicts."""
 
@@ -65,6 +66,8 @@ def analyze_folder(
     provider_by_path: dict[str, list[tuple[Path, str]]] = {}
 
     for index, pak in enumerate(paks, start=1):
+        if cancel_event is not None and cancel_event.is_set():
+            break
         try:
             info = backend.info(pak)
             paths = backend.list_paths(pak)
@@ -105,6 +108,8 @@ def analyze_folder(
     emit(f"发现 {len(shared_paths)} 个被多个 Mod 提供的内部路径，正在对比内容…")
 
     for path in shared_paths:
+        if cancel_event is not None and cancel_event.is_set():
+            break
         providers = provider_by_path[path]
         provider_records: list[ConflictProvider] = []
         hashes: set[str] = set()

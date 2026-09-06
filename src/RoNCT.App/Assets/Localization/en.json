@@ -15,6 +15,7 @@
   "Source.PickFolder": "Select folder",
   "Source.PickFiles": "Select .pak files",
   "Source.AutoDetect": "Auto detect",
+  "Source.Clear": "Clear",
   "Source.None": "No mods selected yet",
   "Source.Count": "{0} mod(s) selected",
   "Source.DetectOk": "Auto-detected the game Mod folder.",

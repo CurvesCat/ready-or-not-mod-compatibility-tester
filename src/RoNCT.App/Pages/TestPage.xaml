@@ -18,6 +18,7 @@
                 <Button x:Name="BtnPickFolder" Click="BtnPickFolder_Click" />
                 <Button x:Name="BtnPickFiles" Click="BtnPickFiles_Click" />
                 <Button x:Name="BtnAutoDetect" Click="BtnAutoDetect_Click" />
+                <Button x:Name="BtnClear" Click="BtnClear_Click" />
             </StackPanel>
             <TextBlock x:Name="SelectionStatusText" Opacity="0.7" />
 

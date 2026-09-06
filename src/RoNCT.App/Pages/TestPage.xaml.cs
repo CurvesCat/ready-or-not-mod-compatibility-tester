@@ -42,6 +42,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         BtnPickFolder.Content = Localizer.T("Source.PickFolder");
         BtnPickFiles.Content = Localizer.T("Source.PickFiles");
         BtnAutoDetect.Content = Localizer.T("Source.AutoDetect");
+        BtnClear.Content = Localizer.T("Source.Clear");
         ActionSectionText.Text = Localizer.T("Action.Title");
         BtnTest.Content = Localizer.T("Action.Run");
         BtnAnalyze.Content = Localizer.T("Action.Analyze");
@@ -117,10 +118,22 @@ public sealed partial class TestPage : Page, ILocalizablePage
     {
         if (sender is Button { Tag: string path })
         {
-            AppSettings.Current.SelectedPakFiles.Remove(path);
+            var currentPaths = SelectionItems().Select(item => item.FilePath).ToList();
+            currentPaths.Remove(path);
+            AppSettings.Current.ModFolder = string.Empty;
+            AppSettings.Current.SelectedPakFiles = currentPaths;
             AppSettings.Save();
             ReloadSelection();
         }
+    }
+
+    private void BtnClear_Click(object sender, RoutedEventArgs e)
+    {
+        AppSettings.Current.ModFolder = string.Empty;
+        AppSettings.Current.SelectedPakFiles.Clear();
+        AppSettings.Save();
+        ReloadSelection();
+        LogText.Text = string.Empty;
     }
 
     private async void BtnTest_Click(object sender, RoutedEventArgs e)

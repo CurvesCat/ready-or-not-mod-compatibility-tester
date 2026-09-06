@@ -15,6 +15,7 @@
   "Source.PickFolder": "选择文件夹",
   "Source.PickFiles": "选择 Mod 文件",
   "Source.AutoDetect": "自动检测",
+  "Source.Clear": "清除",
   "Source.None": "暂未选择任何 Mod",
   "Source.Count": "已选择 {0} 个 Mod",
   "Source.DetectOk": "已自动检测到游戏 Mod 目录。",

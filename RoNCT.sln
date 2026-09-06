@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoNCT.Tests", "tests\RoNCT.Tests\RoNCT.Tests.csproj", "{A8EF2E16-8863-4F0A-AD0F-F31A5A2F2DD8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoNCT.App", "src\RoNCT.App\RoNCT.App.csproj", "{62E7A461-4876-4C43-8EDE-C0D7E462B273}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,18 @@ Global
 		{A8EF2E16-8863-4F0A-AD0F-F31A5A2F2DD8}.Release|x64.Build.0 = Release|Any CPU
 		{A8EF2E16-8863-4F0A-AD0F-F31A5A2F2DD8}.Release|x86.ActiveCfg = Release|Any CPU
 		{A8EF2E16-8863-4F0A-AD0F-F31A5A2F2DD8}.Release|x86.Build.0 = Release|Any CPU
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|Any CPU.Build.0 = Debug|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|x64.ActiveCfg = Debug|x64
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|x64.Build.0 = Debug|x64
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|x86.ActiveCfg = Debug|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Debug|x86.Build.0 = Debug|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|Any CPU.ActiveCfg = Release|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|Any CPU.Build.0 = Release|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|x64.ActiveCfg = Release|x64
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|x64.Build.0 = Release|x64
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|x86.ActiveCfg = Release|x86
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -52,5 +66,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F92CBFB4-3195-4ECA-83FF-9644BDCCF9E4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A8EF2E16-8863-4F0A-AD0F-F31A5A2F2DD8} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{62E7A461-4876-4C43-8EDE-C0D7E462B273} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

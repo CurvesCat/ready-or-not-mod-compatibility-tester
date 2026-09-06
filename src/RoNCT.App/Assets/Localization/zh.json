@@ -1,0 +1,18 @@
+{
+  "App.Title": "RoNCT",
+  "Nav.Test": "测试",
+  "Nav.Nexus": "Nexus",
+  "Nav.Backup": "备份与还原",
+  "Nav.Quarantine": "隔离区",
+  "Nav.Advanced": "高级选项",
+  "Footer.Theme": "主题",
+  "Footer.Language": "语言",
+  "Theme.System": "跟随系统",
+  "Theme.Light": "浅色",
+  "Theme.Dark": "深色",
+  "Page.Test.Body": "在这里选择 Mod、运行一键兼容性测试并查看报告。",
+  "Page.Nexus.Body": "Nexus Mods 识别、确认与前置依赖检查将在这里提供。",
+  "Page.Backup.Body": "Mod 目录备份与一键还原将在这里提供。",
+  "Page.Quarantine.Body": "从游戏目录移出的不可用 Mod 将在这里列出。",
+  "Page.Advanced.Body": "游戏路径、计时、解析工具与存储选项将在这里提供。"
+}

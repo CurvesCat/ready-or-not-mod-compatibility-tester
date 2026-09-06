@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "RoNCT.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "RoNCT.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

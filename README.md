@@ -83,7 +83,7 @@ Download the latest release:
 The release ZIP is self-contained:
 
 ```text
-RoNCT-v0.4.1-win64/
+RoNCT-v0.4.2-win64/
 ├── ReadyOrNot-ModCompatTester.exe
 ├── _internal/            # bundled Python/Qt runtime (keep next to the exe)
 ├── tools/                # repak, UAssetCLI, portable .NET runtime

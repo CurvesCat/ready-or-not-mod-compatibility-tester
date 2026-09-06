@@ -4033,12 +4033,14 @@ class MainWindow(QMainWindow):
         if answer == QMessageBox.Yes:
             self._exit_requested = True
             self.cancel_event.set()
+            audit("exit_requested")
             self._set_status(_t("stop_wait"), "warn")
             self.stop_btn.setEnabled(False)
             self.hide()
             event.ignore()
             QTimer.singleShot(500, self._try_quit_after_cancel)
             QTimer.singleShot(10000, self._force_stop_stuck_tools)
+            QTimer.singleShot(15000, self._force_finish_if_idle)
         else:
             event.ignore()
 
@@ -4075,6 +4077,31 @@ class MainWindow(QMainWindow):
                     child.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
+        QTimer.singleShot(5000, self._force_finish_if_idle)
+
+    def _force_finish_if_idle(self) -> None:
+        """Final safety net: exit if cleanup is stuck and nothing risky is open.
+
+        If the game is still running we keep waiting, because killing the app
+        then could leave Mod files deployed. If no game process is running and
+        the analysis helpers have already been stopped, a hidden app stuck in
+        cleanup has nothing left to protect, so exit immediately.
+        """
+        if not self._exit_requested:
+            return
+        if not (self.running or self.dep_busy or self.nexus_busy):
+            self.close()
+            return
+        try:
+            from .proc import find_game_processes
+
+            if self.exe_path:
+                if find_game_processes(Path(self.exe_path)):
+                    QTimer.singleShot(5000, self._force_finish_if_idle)
+                    return
+        except Exception:
+            pass
+        os._exit(0)
 
     def _sync_post_build_state(self) -> None:
         self._refresh_folder_hint()

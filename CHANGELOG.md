@@ -2,6 +2,15 @@
 
 All notable changes to RoNCT are documented here.
 
+## [0.4.2] - 2026-09-06
+
+### Fixed
+
+- Added a final safety fallback so a hidden window can never stay in the
+  background forever after closing during a task. If cleanup is still stuck
+  after the grace period and no game process is running, the app exits
+  immediately instead of waiting indefinitely.
+
 ## [0.4.1] - 2026-09-06
 
 ### Added

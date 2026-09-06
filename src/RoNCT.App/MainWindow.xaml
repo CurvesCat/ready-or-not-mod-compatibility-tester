@@ -32,6 +32,7 @@
             Grid.Row="1"
             IsBackButtonVisible="Collapsed"
             IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="False"
             PaneClosed="NavView_PaneClosed"
             PaneOpened="NavView_PaneOpened"
             SelectionChanged="NavView_SelectionChanged">
@@ -68,7 +69,7 @@
             </NavigationView.MenuItems>
 
             <NavigationView.PaneFooter>
-                <StackPanel x:Name="FooterPanel" Padding="0,12,0,8" Spacing="4">
+                <StackPanel x:Name="FooterPanel" Padding="12,16,12,12" Spacing="6">
                     <TextBlock
                         x:Name="ThemeLabel"
                         Style="{StaticResource CaptionTextBlockStyle}"

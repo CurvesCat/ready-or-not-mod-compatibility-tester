@@ -36,3 +36,6 @@ updates/
 __pycache__/
 *.pyc
 
+
+# Superpowers SDD scratch (plan artifacts)
+.superpowers/

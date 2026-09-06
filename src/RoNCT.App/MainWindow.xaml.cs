@@ -87,6 +87,10 @@ public sealed partial class MainWindow : Window
         {
             page = (Page)Activator.CreateInstance(type)!;
             _pages[tag] = page;
+            if (page is TestPage testPage)
+            {
+                testPage.AttachWindow(this);
+            }
         }
 
         NavFrame.Content = page;

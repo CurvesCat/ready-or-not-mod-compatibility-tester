@@ -4,16 +4,59 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:RoNCT_App.Pages"
+    xmlns:local="using:RoNCT.App.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="24,16,24,16" RowSpacing="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock x:Name="PageBodyText" Grid.Row="1" />
-    </Grid>
+    <ScrollViewer>
+        <StackPanel Padding="24,16,24,24" Spacing="14">
+            <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock x:Name="PageBodyText" Opacity="0.8" />
+
+            <TextBlock x:Name="SourceSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="BtnPickFolder" Click="BtnPickFolder_Click" />
+                <Button x:Name="BtnPickFiles" Click="BtnPickFiles_Click" />
+                <Button x:Name="BtnAutoDetect" Click="BtnAutoDetect_Click" />
+            </StackPanel>
+            <TextBlock x:Name="SelectionStatusText" Opacity="0.7" />
+
+            <ListView
+                x:Name="ModList"
+                MaxHeight="260"
+                SelectionMode="None"
+                ItemsSource="{x:Bind ModRows}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:ModRow">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind FileName}" VerticalAlignment="Center" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="{x:Bind FileSize}"
+                                Opacity="0.6"
+                                VerticalAlignment="Center" />
+                            <Button
+                                Grid.Column="2"
+                                Click="RemoveRow_Click"
+                                Content="&#xE74D;"
+                                Tag="{x:Bind FilePath}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock x:Name="ActionSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="BtnTest" Click="BtnTest_Click" Style="{StaticResource AccentButtonStyle}" />
+                <Button x:Name="BtnAnalyze" Click="BtnAnalyze_Click" />
+            </StackPanel>
+            <ProgressBar x:Name="Progress" Visibility="Collapsed" IsIndeterminate="True" />
+            <TextBlock x:Name="LogText" Opacity="0.8" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
 </Page>

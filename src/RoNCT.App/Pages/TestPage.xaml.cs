@@ -127,9 +127,13 @@ public sealed partial class TestPage : Page, ILocalizablePage
     {
         var items = SelectionItems();
         var conflicts = ConflictScanner.FindConflicts(items);
-        var plan = TestPlanner.Build(items, conflicts);
+        var scanned = items.Select(item => item.FileName).ToList();
+        var pairs = conflicts
+            .Select(conflict => (IReadOnlyList<string>)new[] { conflict.A.FileName, conflict.B.FileName })
+            .ToList();
+        var plan = DeploymentPlanner.Build(scanned, pairs, Array.Empty<DependencyEdge>());
         LogText.Text = string.Format(
-            Localizer.T("Action.PlanSummary"), plan.Groups.Count, plan.ConflictCount);
+            Localizer.T("Action.PlanSummary"), plan.Groups.Count, plan.ConflictPairs.Count);
     }
 
     private async void BtnAnalyze_Click(object sender, RoutedEventArgs e)

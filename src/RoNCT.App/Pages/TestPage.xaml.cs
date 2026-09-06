@@ -123,17 +123,35 @@ public sealed partial class TestPage : Page, ILocalizablePage
         }
     }
 
-    private void BtnTest_Click(object sender, RoutedEventArgs e)
+    private async void BtnTest_Click(object sender, RoutedEventArgs e)
     {
         var items = SelectionItems();
-        var conflicts = ConflictScanner.FindConflicts(items);
-        var scanned = items.Select(item => item.FileName).ToList();
-        var pairs = conflicts
-            .Select(conflict => (IReadOnlyList<string>)new[] { conflict.A.FileName, conflict.B.FileName })
-            .ToList();
-        var plan = DeploymentPlanner.Build(scanned, pairs, Array.Empty<DependencyEdge>());
-        LogText.Text = string.Format(
-            Localizer.T("Action.PlanSummary"), plan.Groups.Count, plan.ConflictPairs.Count);
+        if (items.Count == 0)
+        {
+            LogText.Text = Localizer.T("Analysis.None");
+            return;
+        }
+
+        Progress.Visibility = Visibility.Visible;
+        try
+        {
+            var result = await TestRunner.RunAsync(
+                AppSettings.Current, items, line => LogText.Text = line, default);
+            Progress.Visibility = Visibility.Collapsed;
+
+            var ok = result.Outcomes.Count(o => o.Result.Verdict == TestVerdict.Ok);
+            var fail = result.Outcomes.Count(o => o.Result.Verdict is TestVerdict.Fail or TestVerdict.Error);
+            var skipped = result.Outcomes.Count(o => o.Result.Verdict == TestVerdict.Skipped);
+            LogText.Text = string.Format(Localizer.T("Test.DoneSummary"),
+                result.Outcomes.Count, ok, fail, skipped)
+                + "\n"
+                + (result.CsvReport ?? string.Empty);
+        }
+        catch (Exception exc)
+        {
+            Progress.Visibility = Visibility.Collapsed;
+            LogText.Text = exc.Message;
+        }
     }
 
     private async void BtnAnalyze_Click(object sender, RoutedEventArgs e)

@@ -44,8 +44,9 @@
                             <Button
                                 Grid.Column="2"
                                 Click="RemoveRow_Click"
-                                Content="&#xE74D;"
-                                Tag="{x:Bind FilePath}" />
+                                Tag="{x:Bind FilePath}">
+                                <SymbolIcon Symbol="Delete" />
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

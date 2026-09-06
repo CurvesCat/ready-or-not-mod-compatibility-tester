@@ -18,6 +18,7 @@
   "Source.None": "暂未选择任何 Mod",
   "Source.Count": "已选择 {0} 个 Mod",
   "Source.DetectOk": "已自动检测到游戏 Mod 目录。",
+  "Source.DetectCount": "已自动检测到 {0} 个 Mod。",
   "Source.DetectFailed": "无法自动找到 Ready or Not 的 Mod 目录。",
   "Action.Title": "运行",
   "Action.Run": "一键测试",

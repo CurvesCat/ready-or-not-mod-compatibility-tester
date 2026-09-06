@@ -88,22 +88,29 @@ public sealed partial class TestPage : Page, ILocalizablePage
 
     private void BtnAutoDetect_Click(object sender, RoutedEventArgs e)
     {
-        var autoFolder = AppSettings.Current.GameRoot;
-        var folder = !string.IsNullOrEmpty(autoFolder)
-            ? Path.Combine(autoFolder, "ReadyOrNot", "Content", "Paks")
+        var gameRoot = AppSettings.Current.GameRoot;
+        var paksRoot = !string.IsNullOrEmpty(gameRoot)
+            ? Path.Combine(gameRoot, "ReadyOrNot", "Content", "Paks")
             : KnownModFolders.FirstOrDefault(Directory.Exists);
 
-        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+        if (string.IsNullOrEmpty(paksRoot) || !Directory.Exists(paksRoot))
         {
             LogText.Text = Localizer.T("Source.DetectFailed");
             return;
         }
 
-        AppSettings.Current.ModFolder = folder;
-        AppSettings.Current.SelectedPakFiles.Clear();
+        var mods = PakSource.FromGamePaksFolder(paksRoot);
+        if (mods.Count == 0)
+        {
+            LogText.Text = Localizer.T("Source.DetectFailed");
+            return;
+        }
+
+        AppSettings.Current.ModFolder = string.Empty;
+        AppSettings.Current.SelectedPakFiles = mods.Select(mod => mod.FilePath).ToList();
         AppSettings.Save();
         ReloadSelection();
-        LogText.Text = Localizer.T("Source.DetectOk");
+        LogText.Text = string.Format(Localizer.T("Source.DetectCount"), mods.Count);
     }
 
     private void RemoveRow_Click(object sender, RoutedEventArgs e)

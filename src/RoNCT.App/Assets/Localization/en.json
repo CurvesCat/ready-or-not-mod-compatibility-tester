@@ -18,6 +18,7 @@
   "Source.None": "No mods selected yet",
   "Source.Count": "{0} mod(s) selected",
   "Source.DetectOk": "Auto-detected the game Mod folder.",
+  "Source.DetectCount": "Detected {0} mod(s).",
   "Source.DetectFailed": "Could not find the Ready or Not Mod folder automatically.",
   "Action.Title": "Run",
   "Action.Run": "One-click test",

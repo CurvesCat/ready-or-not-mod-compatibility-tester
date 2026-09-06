@@ -26,17 +26,14 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(iconPath);
         }
 
-        try
-        {
-            SystemBackdrop = new MicaBackdrop();
-        }
-        catch
-        {
-            // Mica requires Windows 11; older systems keep the solid fallback.
-        }
+        // The translucent system backdrop follows the OS theme, which keeps the
+        // title bar and navigation pane dark even in Light mode. Until the theme
+        // is driven through a system-backdrop controller, use the theme-aware
+        // solid background on RootGrid for a consistent look on every theme.
 
         ApplyLanguage();
         RebuildThemeCombo(AppSettings.Current.ThemeMode);
+        SelectTheme(AppSettings.Current.ThemeMode);
         ShowPage("test");
         VersionText.Text = $"v{GetInformationalVersion()}";
     }
@@ -107,12 +104,15 @@ public sealed partial class MainWindow : Window
 
     private void SelectTheme(string mode)
     {
-        NavView.RequestedTheme = mode switch
+        var elementTheme = mode switch
         {
             "light" => ElementTheme.Light,
             "dark" => ElementTheme.Dark,
             _ => ElementTheme.Default,
         };
+        RootGrid.RequestedTheme = elementTheme;
+        NavView.RequestedTheme = elementTheme;
+        AppTitleBar.RequestedTheme = elementTheme;
     }
 
     private void LangEnButton_Click(object sender, RoutedEventArgs e)

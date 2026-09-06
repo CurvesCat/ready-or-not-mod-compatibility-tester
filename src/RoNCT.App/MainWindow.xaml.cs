@@ -16,9 +16,10 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        FooterPanel.Visibility = NavView.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
+
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
         if (File.Exists(iconPath))
@@ -52,7 +53,14 @@ public sealed partial class MainWindow : Window
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args)
     {
         NavView.IsPaneOpen = !NavView.IsPaneOpen;
+        FooterPanel.Visibility = NavView.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private void NavView_PaneOpened(NavigationView sender, object args) =>
+        FooterPanel.Visibility = Visibility.Visible;
+
+    private void NavView_PaneClosed(NavigationView sender, object args) =>
+        FooterPanel.Visibility = Visibility.Collapsed;
 
     private void NavView_SelectionChanged(
         NavigationView sender, NavigationViewSelectionChangedEventArgs args)

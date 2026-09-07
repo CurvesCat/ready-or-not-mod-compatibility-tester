@@ -22,12 +22,22 @@ public static class GameProcessService
 
     public static IReadOnlyList<int> FindGameProcessIds(string exePath)
     {
+        var targetName = Path.GetFileNameWithoutExtension(exePath);
         var target = NormalizePath(exePath);
         var ids = new List<int>();
         foreach (var process in Process.GetProcesses())
         {
             try
             {
+                // Match by process name first: this works across bitness (an
+                // x86 app inspecting a x64 game), which MainModule cannot.
+                if (string.Equals(
+                    process.ProcessName, targetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ids.Add(process.Id);
+                    continue;
+                }
+                // Fallback: compare full executable path when accessible.
                 var fileName = process.MainModule?.FileName;
                 if (!string.IsNullOrEmpty(fileName) &&
                     string.Equals(NormalizePath(fileName), target, StringComparison.OrdinalIgnoreCase))
@@ -36,13 +46,9 @@ public static class GameProcessService
                 }
             }
             catch (InvalidOperationException)
-            {
-                // Process exited before inspection.
-            }
+            { }
             catch (System.ComponentModel.Win32Exception)
-            {
-                // Access denied / not this user.
-            }
+            { }
             finally
             {
                 process.Dispose();

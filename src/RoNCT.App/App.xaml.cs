@@ -33,8 +33,48 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        var cmdArgs = Environment.GetCommandLineArgs();
+        if (cmdArgs.Contains("--selfcal", StringComparer.OrdinalIgnoreCase))
+        {
+            RunSelfCalibration();
+            Environment.Exit(0);
+            return;
+        }
+
         Localizer.SetLanguage(AppSettings.Current.Language);
         _window = new MainWindow();
         _window.Activate();
+    }
+
+    private static void RunSelfCalibration()
+    {
+        var knownExe =
+            @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Binaries\Win64\ReadyOrNotSteam-Win64-Shipping.exe";
+        var exe = !string.IsNullOrEmpty(AppSettings.Current.ExePath)
+            ? AppSettings.Current.ExePath
+            : (File.Exists(knownExe) ? knownExe : string.Empty);
+        var logDir = Path.Combine(AppSettings.DataDirectory, "logs");
+        Directory.CreateDirectory(logDir);
+        var outPath = Path.Combine(logDir, "selfcal.txt");
+
+        try
+        {
+            var cal = CalibrationService.Run(
+                exe,
+                AppSettings.Current.ExtraArgs,
+                logDir,
+                180,
+                120,
+                AppLog.Log);
+            File.WriteAllText(
+                outPath,
+                $"window={cal.WindowSeconds:0.0} menu={cal.MenuSeconds:0.0} stable={cal.SuggestedStable:0}");
+            AppLog.Log($"selfcal done: window={cal.WindowSeconds:0.0} menu={cal.MenuSeconds:0.0} stable={cal.SuggestedStable:0}");
+        }
+        catch (Exception exc)
+        {
+            File.WriteAllText(outPath, "ERROR: " + exc.Message);
+            AppLog.Log("selfcal error: " + exc);
+        }
     }
 }

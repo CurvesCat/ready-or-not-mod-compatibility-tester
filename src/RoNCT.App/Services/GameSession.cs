@@ -73,6 +73,7 @@ public sealed class GameSession
     private readonly Action<string> _emitLog;
     private readonly CancellationToken _cancel;
     private readonly List<string> _deployed = new();
+    private System.Diagnostics.Process? _entryProcess;
 
     public GameSession(
         string exePath,
@@ -149,8 +150,10 @@ public sealed class GameSession
                 TestVerdict.Error, "Failed to launch the game process.",
                 string.Empty, false, 0, Array.Empty<string>());
         }
+        _entryProcess = process;
 
         _emitLog($"  Launched game (PID {process.Id})...");
+        AppLog.Log($"GameSession: launched PID {process.Id} for '{logPath}'");
         var start = DateTime.UtcNow;
         var startupDeadline = start.AddSeconds(_startupTimeout);
         DateTime? windowAt = null;
@@ -297,7 +300,20 @@ public sealed class GameSession
         {
             GameProcessService.GracefulClose(pids);
         }
+        try
+        {
+            if (_entryProcess is { HasExited: false } p)
+            {
+                p.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+            // already exited
+        }
+        _entryProcess = null;
         Thread.Sleep(200);
+        AppLog.Log($"GameSession: verdict={verdict} reason=\"{reason}\"");
         return new SessionResult(
             verdict, reason, excerpt.Trim(), menuReached,
             (DateTime.UtcNow - start).TotalSeconds, crashDirs ?? Array.Empty<string>());

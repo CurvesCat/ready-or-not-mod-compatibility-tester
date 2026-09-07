@@ -78,6 +78,29 @@ public static class TestRunner
             : config.ReportDir;
         var crashesDir = ResolveCrashesDir(config);
 
+        AppLog.Log($"TestRunner: starting with {mods.Count} mod(s); autoCalibrate={config.AutoCalibrate}");
+
+        if (config.AutoCalibrate)
+        {
+            emit("Auto-calibrating startup timing (launches the game once)...");
+            var cal = CalibrationService.Run(
+                exePath,
+                config.ExtraArgs,
+                logDir,
+                config.StartupTimeoutSeconds,
+                120,
+                emit,
+                cancellationToken);
+            config.StableSeconds = cal.SuggestedStable;
+            AppSettings.Save();
+            emit(
+                $"Calibration done: window={cal.WindowSeconds:0.0}s, " +
+                $"menu={cal.MenuSeconds:0.0}s -> stable {cal.SuggestedStable:0}s");
+            AppLog.Log(
+                $"Calibration: window={cal.WindowSeconds:0.0} menu={cal.MenuSeconds:0.0} " +
+                $"stable={cal.SuggestedStable:0}");
+        }
+
         // Build plan from static name conflicts (dependency edges + rules come later).
         var conflicts = ConflictScanner.FindConflicts(mods);
         var scanned = mods.Select(mod => mod.FileName).ToList();
@@ -121,6 +144,7 @@ public static class TestRunner
             var result = await Task.Run(
                 () => session.Run(deployItems, $"group_{groupIndex}"),
                 cancellationToken);
+            AppLog.Log($"Group {groupIndex} verdict={result.Verdict}: {result.Reason}");
             outcomes.Add(new GroupOutcome($"g{groupIndex}", group.Mods, result));
         }
 
@@ -154,6 +178,7 @@ public static class TestRunner
             }
         }
         var csvReport = ReportWriter.WriteCsv(reportDir, "mod_compat_report", csvRows);
+        AppLog.Log($"TestRunner: finished, reports at {jsonReport}");
 
         return new TestRunResult(outcomes, jsonReport, csvReport);
     }

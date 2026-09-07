@@ -41,6 +41,12 @@ public sealed class AppConfig
     public string Engine { get; set; } = "VER_UE5_4";
     public bool AnalyzeDeps { get; set; } = true;
 
+    // Calibration cache: remember which exe/args were last calibrated so the
+    // app does not launch a full timing run before every test.
+    public string CalibrationExePath { get; set; } = string.Empty;
+    public string CalibrationExtraArgs { get; set; } = string.Empty;
+    public DateTime CalibrationUtc { get; set; }
+
     // Updates (endpoint empty until GitHub hosting is available)
     public string UpdateManifestUrl { get; set; } = string.Empty;
 }

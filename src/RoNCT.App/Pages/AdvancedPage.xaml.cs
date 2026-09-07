@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using RoNCT.Core.Configuration;
 using RoNCT.App.Services;
 
 namespace RoNCT.App.Pages;
@@ -210,6 +211,8 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
 
             cfg.StableSeconds = cal.SuggestedStable;
             cfg.StartupTimeoutSeconds = suggestedStartup;
+            CalibrationCache.Mark(
+                cfg, exe, cfg.ExtraArgs, DateTime.UtcNow);
             AppSettings.Save();
 
             StableBox.Text = cfg.StableSeconds.ToString();

@@ -110,7 +110,9 @@ public static class TestRunner
             emit($"Backup created: {manifestPath}");
         }
 
-        if (config.AutoCalibrate)
+        if (config.AutoCalibrate &&
+            !CalibrationCache.IsCurrent(
+                config, exePath, config.ExtraArgs, DateTime.UtcNow))
         {
             emit("Auto-calibrating startup timing (launches the game once)...");
             var cal = CalibrationService.Run(
@@ -122,6 +124,8 @@ public static class TestRunner
                 emit,
                 cancellationToken);
             config.StableSeconds = cal.SuggestedStable;
+            CalibrationCache.Mark(
+                config, exePath, config.ExtraArgs, DateTime.UtcNow);
             AppSettings.Save();
             emit(
                 $"Calibration done: window={cal.WindowSeconds:0.0}s, " +

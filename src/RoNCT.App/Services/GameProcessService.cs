@@ -189,6 +189,19 @@ public static class GameProcessService
         return false;
     }
 
+    public static double? SampleTotalCpuMs(Process process)
+    {
+        try
+        {
+            process.Refresh();
+            return process.TotalProcessorTime.TotalMilliseconds;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static bool ProcessAlive(int pid)
     {
         try

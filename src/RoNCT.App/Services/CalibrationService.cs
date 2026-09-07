@@ -1,4 +1,6 @@
 using System.Text;
+using RoNCT.Core.Configuration;
+using RoNCT.Core.Detection;
 
 namespace RoNCT.App.Services;
 
@@ -48,6 +50,9 @@ public static class CalibrationService
         double? menuAt = null;
         var lastClick = DateTime.UtcNow;
         var offset = 0;
+        var idleMonitor = new CpuIdleMonitor();
+        var lastCpuSampleAt = DateTime.UtcNow;
+        double? lastCpuTotalMs = GameProcessService.SampleTotalCpuMs(process);
 
         try
         {
@@ -70,11 +75,34 @@ public static class CalibrationService
                     lastClick = now;
                 }
 
+                if ((now - lastCpuSampleAt).TotalSeconds >= 1)
+                {
+                    if (windows.Count > 0)
+                    {
+                        var total = GameProcessService.SampleTotalCpuMs(process);
+                        if (total is not null && lastCpuTotalMs is not null)
+                        {
+                            var wallMs = Math.Max(
+                                1, (now - lastCpuSampleAt).TotalMilliseconds);
+                            var percent = Math.Max(
+                                0, (total.Value - lastCpuTotalMs.Value) / wallMs * 100);
+                            idleMonitor.Sample(percent, now);
+                        }
+                        lastCpuTotalMs = total ?? lastCpuTotalMs;
+                    }
+                    lastCpuSampleAt = now;
+                }
+
                 var menuFound = ScanMenu(logPath, ref offset);
                 if (menuFound && menuAt is null)
                 {
                     menuAt = elapsed;
                     log($"Calibration: main-menu marker at {menuAt:0.0}s.");
+                }
+                if (idleMonitor.MenuConfirmed && menuAt is null)
+                {
+                    menuAt = elapsed;
+                    log($"Calibration: main-menu idle detected at {menuAt:0.0}s.");
                 }
 
                 if (process.HasExited)
@@ -88,6 +116,13 @@ public static class CalibrationService
 
                 if (menuAt is not null && elapsed - menuAt.Value >= 2)
                 {
+                    break;
+                }
+                if (CalibrationTiming.WindowGraceReached(windowAt, elapsed))
+                {
+                    log(
+                        $"Calibration: main window stable for " +
+                        $"{CalibrationTiming.WindowGraceSeconds:0}s, finishing.");
                     break;
                 }
                 if (windowAt is null && elapsed >= startupTimeoutSeconds)
@@ -123,9 +158,7 @@ public static class CalibrationService
             }
         }
 
-        var suggested = menuAt is not null && windowAt is not null
-            ? Math.Max(35, menuAt.Value - windowAt.Value + 8)
-            : windowAt is not null ? Math.Max(35, windowAt.Value + 15) : 35;
+        var suggested = CalibrationTiming.SuggestedStable(windowAt, menuAt);
         return new CalibrationResult(windowAt, menuAt, suggested);
     }
 

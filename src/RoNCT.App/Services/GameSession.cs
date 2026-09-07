@@ -1,4 +1,5 @@
 using System.Text;
+using RoNCT.Core.Detection;
 
 namespace RoNCT.App.Services;
 
@@ -167,6 +168,9 @@ public sealed class GameSession
         DateTime? stableDeadline = null;
         var lastObsLog = start;
         var lastClick = start;
+        var idleMonitor = new CpuIdleMonitor();
+        var lastCpuSampleAt = start;
+        double? lastCpuTotalMs = GameProcessService.SampleTotalCpuMs(process);
         nint mainHwnd = 0;
         var clicks = 0;
         var tail = new List<string>();
@@ -205,6 +209,24 @@ public sealed class GameSession
                 lastObsLog = now;
             }
 
+            if ((now - lastCpuSampleAt).TotalSeconds >= 1)
+            {
+                if (windows.Count > 0)
+                {
+                    var total = GameProcessService.SampleTotalCpuMs(process);
+                    if (total is not null && lastCpuTotalMs is not null)
+                    {
+                        var wallMs = Math.Max(
+                            1, (now - lastCpuSampleAt).TotalMilliseconds);
+                        var percent = Math.Max(
+                            0, (total.Value - lastCpuTotalMs.Value) / wallMs * 100);
+                        idleMonitor.Sample(percent, now);
+                    }
+                    lastCpuTotalMs = total ?? lastCpuTotalMs;
+                }
+                lastCpuSampleAt = now;
+            }
+
             var errorWindows = GameProcessService.FindErrorWindows(
                 new[] { "RoNCT" });
             if (errorWindows.Count > 0)
@@ -227,6 +249,11 @@ public sealed class GameSession
             {
                 menuAt = now;
                 _emitLog("  Detected main-menu marker, entering confirmation window...");
+            }
+            if (idleMonitor.MenuConfirmed && menuAt is null)
+            {
+                menuAt = now;
+                _emitLog("  Detected main-menu idle, entering confirmation window...");
             }
 
             var newCrash = NewCrashDirs(crashBaseline);
@@ -429,6 +456,7 @@ public sealed class GameSession
         }
         return Encoding.UTF8.GetString(data);
     }
+
 }
 
 public sealed record DeploySource(string SourcePath, string TargetName);

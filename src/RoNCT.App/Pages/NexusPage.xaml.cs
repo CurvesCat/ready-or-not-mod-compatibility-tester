@@ -4,6 +4,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using RoNCT.App.Services;
+using RoNCT.Core.Plan;
 using RoNCT.Core.Selection;
 
 namespace RoNCT.App.Pages;
@@ -15,6 +16,8 @@ public sealed partial class NexusPage : Page, ILocalizablePage
     private readonly List<NexusModInfo> _identified = new();
     private MainWindow? _window;
     private bool _dialogOpen;
+    private IReadOnlyList<ModItem>? _dependencyItems;
+    private RoNCT.Core.Plan.DeployPlan? _dependencyPlan;
     private Dictionary<string, NexusMappingRecord> _mapping = new(
         StringComparer.OrdinalIgnoreCase);
 
@@ -39,6 +42,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         BtnTutorial.Content = Localizer.T("Nexus.Tutorial");
         BtnIdentify.Content = Localizer.T("Nexus.Identify");
         BtnDeps.Content = Localizer.T("Nexus.Deps");
+        BtnRunDepGroups.Content = Localizer.T("Nexus.RunDepGroups");
         BtnOpenResult.Content = Localizer.T("Nexus.OpenPage");
         BtnConfirmResult.Content = Localizer.T("Nexus.Confirm");
         BtnCandidatesResult.Content = Localizer.T("Nexus.Candidates");
@@ -150,7 +154,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
                     {
                         confirmed++;
                         var info = ToInfo(saved);
-                        AddIdentified(info);
+                        AddIdentified(info, mod.FileName);
                         ResultRows.Add(RowFromInfo(
                             mod.FileName,
                             md5,
@@ -178,7 +182,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
                 {
                     found++;
                     var info = matches[0];
-                    AddIdentified(info);
+                    AddIdentified(info, mod.FileName);
                     ResultRows.Add(RowFromInfo(
                         mod.FileName,
                         md5,
@@ -194,7 +198,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
                 if (best is not null)
                 {
                     candidates++;
-                    AddIdentified(best);
+                    AddIdentified(best, mod.FileName);
                     ResultRows.Add(RowFromInfo(
                         mod.FileName,
                         md5,
@@ -250,6 +254,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         NexusModInfo info,
         IReadOnlyList<NexusModInfo>? candidates)
     {
+        info.PakName ??= fileName;
         return new NexusResultRow(
             fileName,
             md5,
@@ -261,10 +266,14 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             candidates);
     }
 
-    private void AddIdentified(NexusModInfo? info)
+    private void AddIdentified(NexusModInfo? info, string? pakName = null)
     {
         if (info is not null && info.ModId is not null)
         {
+            if (string.IsNullOrEmpty(info.PakName) && !string.IsNullOrEmpty(pakName))
+            {
+                info.PakName = pakName;
+            }
             _identified.RemoveAll(item => item.ModId == info.ModId);
             _identified.Add(info);
         }
@@ -278,6 +287,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             Name = record.ModName,
             Author = record.Author,
             ModUrl = record.ModUrl,
+            PakName = record.PakName,
         };
     }
 
@@ -443,6 +453,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             StatusText.Text = Localizer.T("Nexus.NeedMd5");
             return;
         }
+        info.PakName ??= row.FileName;
 
         NexusUserMapping.Confirm(
             row.Md5,
@@ -521,57 +532,109 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         }
 
         _mapping = NexusUserMapping.Load();
-        foreach (var record in _mapping.Values)
-        {
-            if (record.Choice == NexusUserMapping.Confirmed)
-            {
-                AddIdentified(ToInfo(record));
-            }
-        }
-
-        var mods = _identified
-            .Where(info => info.ModId is not null)
-            .DistinctBy(info => info.ModId)
+        var confirmed = _mapping.Values
+            .Where(record => record.Choice == NexusUserMapping.Confirmed)
+            .Select(ToInfo)
             .ToList();
-        if (mods.Count == 0)
+        if (confirmed.Count == 0)
         {
-            StatusText.Text = Localizer.T("Nexus.IdentifyFirst");
+            StatusText.Text = Localizer.T("Nexus.DepsNoConfirmed");
             return;
         }
 
         StatusText.Text = Localizer.T("Nexus.CheckingDeps");
-        var missing = new List<string>();
-        foreach (var info in mods)
-        {
-            if (info.ModId is null)
-            {
-                continue;
-            }
-            foreach (var dep in await NexusClient.GetDependenciesAsync(
-                         key, info.ModId.Value))
-            {
-                if (!string.IsNullOrEmpty(dep.Name))
-                {
-                    missing.Add($"{info.Name} needs {dep.Name}");
-                }
-            }
-        }
+        var report = await NexusDependencyReportBuilder.BuildAsync(
+            key, confirmed, _identified);
 
         ResultRows.Clear();
-        foreach (var line in missing.Distinct())
+        foreach (var row in report.Rows)
         {
-            var parts = line.Split(" needs ", 2);
             ResultRows.Add(new NexusResultRow(
-                parts.Length > 0 ? parts[0] : line,
+                row.PakName,
                 string.Empty,
                 modId: null,
-                Localizer.T("Nexus.Dep"),
-                parts.Length > 1 ? parts[1] : line,
-                string.Empty,
-                string.Empty));
+                DependencyStatusLabel(row.Status),
+                row.SourceMod + "  →  " + row.Requirement,
+                row.Notes,
+                row.Url));
         }
-        StatusText.Text = string.Format(Localizer.T("Nexus.DepsSummary"), missing.Count);
+
+        var items = CurrentSelection();
+        _dependencyItems = items;
+        _dependencyPlan = items.Count > 0
+            ? DeploymentPlanner.Build(
+                items.Select(item => item.FileName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                Array.Empty<IReadOnlyList<string>>(),
+                report.DependencyEdges)
+            : null;
+        BtnRunDepGroups.IsEnabled =
+            _dependencyPlan is { Groups.Count: > 0 } && report.DependencyEdges.Count > 0;
+
+        var missing = report.Rows.Count(row => row.Status == "missing");
+        var installed = report.Rows.Count(row => row.Status == "installed");
+        var candidates = report.Rows.Count(row => row.Status == "local_candidate");
+        var others = report.Rows.Count(row =>
+            row.Status is "dlc" or "external" or "error");
+        StatusText.Text = string.Format(
+            Localizer.T("Nexus.DepsSummary"),
+            missing,
+            installed,
+            candidates,
+            others,
+            _dependencyPlan?.Groups.Count ?? 0);
     }
+
+    private async void BtnRunDepGroups_Click(object sender, RoutedEventArgs e)
+    {
+        if (_dependencyItems is null || _dependencyItems.Count == 0 ||
+            _dependencyPlan is null)
+        {
+            return;
+        }
+
+        AppLog.UserAction("nexus_test_from_dependency_groups");
+        StatusText.Text = string.Format(
+            Localizer.T("Nexus.RunDepGroupsStarted"), _dependencyPlan.Groups.Count);
+        try
+        {
+            var result = await TestRunner.RunAsync(
+                AppSettings.Current,
+                _dependencyItems,
+                line => StatusText.Text = line,
+                default,
+                _dependencyPlan);
+            var total = result.Outcomes.Sum(outcome => outcome.Mods.Count);
+            var ok = result.Outcomes
+                .Where(o => o.Result.Verdict == TestVerdict.Ok)
+                .Sum(o => o.Mods.Count);
+            var fail = result.Outcomes
+                .Where(o => o.Result.Verdict is TestVerdict.Fail or TestVerdict.Error)
+                .Sum(o => o.Mods.Count);
+            var skipped = result.Outcomes
+                .Where(o => o.Result.Verdict == TestVerdict.Skipped)
+                .Sum(o => o.Mods.Count);
+            StatusText.Text = string.Format(
+                Localizer.T("Test.DoneSummary"), total, ok, fail, skipped)
+                + "\n"
+                + (result.CsvReport ?? string.Empty);
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("NexusPage grouped test failed: " + exc.Message);
+            StatusText.Text = exc.Message;
+        }
+    }
+
+    private static string DependencyStatusLabel(string status) =>
+        Localizer.T(status switch
+        {
+            "installed" => "Nexus.DepStatus.Installed",
+            "local_candidate" => "Nexus.DepStatus.LocalCandidate",
+            "missing" => "Nexus.DepStatus.Missing",
+            "external" => "Nexus.DepStatus.External",
+            "dlc" => "Nexus.DepStatus.Dlc",
+            _ => "Nexus.DepStatus.Error",
+        });
 
     private static void OpenUrl(string url)
     {

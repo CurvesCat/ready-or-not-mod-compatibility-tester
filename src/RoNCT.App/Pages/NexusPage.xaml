@@ -31,6 +31,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="BtnIdentify" Click="BtnIdentify_Click" />
                 <Button x:Name="BtnDeps" Click="BtnDeps_Click" />
+                <Button x:Name="BtnRunDepGroups" Click="BtnRunDepGroups_Click" IsEnabled="False" />
             </StackPanel>
 
             <ListView

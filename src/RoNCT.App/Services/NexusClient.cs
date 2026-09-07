@@ -14,12 +14,30 @@ public sealed class NexusModInfo
     public string? FileName { get; set; }
     public string? Version { get; set; }
     public string? Author { get; set; }
+    public string? PakName { get; set; }
 }
 
 public sealed class NexusDependency
 {
     public long? ModId { get; set; }
     public string? Name { get; set; }
+}
+
+public sealed class NexusRequirement
+{
+    public long? ModId { get; set; }
+    public string? Name { get; set; }
+    public string? Url { get; set; }
+    public bool External { get; set; }
+    public bool IsDlc { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class NexusModRequirements
+{
+    public string? ModName { get; set; }
+    public IReadOnlyList<NexusRequirement> Items { get; set; } =
+        Array.Empty<NexusRequirement>();
 }
 
 public static class NexusClient
@@ -206,6 +224,116 @@ public static class NexusClient
             .Take(10)
             .Select(entry => entry.Info)
             .ToArray();
+    }
+
+    /// <summary>
+    /// GraphQL requirements query used by the original RoNCT: returns DLC and
+    /// Nexus-mod requirements for one Ready or Not mod.
+    /// </summary>
+    public static async Task<NexusModRequirements> GetModRequirementsAsync(
+        string apiKey,
+        long modId,
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            query RoNCTRequirements($gameId: ID!, $modId: ID!) {
+              mod(gameId: $gameId, modId: $modId) {
+                modId
+                name
+                modRequirements {
+                  dlcRequirements {
+                    notes
+                    gameExpansion { name }
+                  }
+                  nexusRequirements {
+                    nodes {
+                      modId
+                      modName
+                      externalRequirement
+                      notes
+                      url
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        var body = new
+        {
+            query,
+            variables = new
+            {
+                gameId = 4205,
+                modId,
+            },
+        };
+        using var request = new HttpRequestMessage(HttpMethod.Post, GraphQlUri);
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+        request.Headers.TryAddWithoutValidation("Origin", "https://www.nexusmods.com");
+        request.Headers.TryAddWithoutValidation("Referer", "https://www.nexusmods.com/");
+
+        var result = new NexusModRequirements();
+        var json = await SendAsync(apiKey, request, cancellationToken);
+        if (json is null)
+        {
+            return result;
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("data", out var data) ||
+            !data.TryGetProperty("mod", out var mod))
+        {
+            return result;
+        }
+        result.ModName = GetString(mod, "name");
+        if (!mod.TryGetProperty("modRequirements", out var requirements))
+        {
+            return result;
+        }
+
+        var items = new List<NexusRequirement>();
+        if (requirements.TryGetProperty("dlcRequirements", out var dlcList))
+        {
+            foreach (var dlc in dlcList.EnumerateArray())
+            {
+                var expansion = dlc.TryGetProperty("gameExpansion", out var exp)
+                    ? exp
+                    : dlc;
+                items.Add(new NexusRequirement
+                {
+                    IsDlc = true,
+                    Name = GetString(expansion, "name"),
+                    Notes = GetString(dlc, "notes"),
+                });
+            }
+        }
+
+        if (requirements.TryGetProperty("nexusRequirements", out var nexus) &&
+            nexus.TryGetProperty("nodes", out var nodes))
+        {
+            foreach (var node in nodes.EnumerateArray())
+            {
+                var external = GetBool(node, "externalRequirement");
+                var id = GetLongFromAny(node, "modId");
+                var url = GetString(node, "url");
+                if (string.IsNullOrEmpty(url) && id is > 0)
+                {
+                    url = $"https://www.nexusmods.com/{GameDomain}/mods/{id}";
+                }
+                items.Add(new NexusRequirement
+                {
+                    ModId = external ? null : id,
+                    Name = GetString(node, "modName"),
+                    External = external,
+                    Url = url,
+                    Notes = GetString(node, "notes"),
+                });
+            }
+        }
+
+        result.Items = items;
+        return result;
     }
 
     public static async Task<IReadOnlyList<NexusDependency>> GetDependenciesAsync(
@@ -414,6 +542,26 @@ public static class NexusClient
 
     private static string? GetString(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) ? value.GetString() : null;
+
+    private static bool GetBool(JsonElement element, string property)
+        => element.TryGetProperty(property, out var value) &&
+           (value.ValueKind == JsonValueKind.True ||
+            (value.ValueKind == JsonValueKind.String &&
+             string.Equals(value.GetString(), "true", StringComparison.OrdinalIgnoreCase)));
+
+    private static long? GetLongFromAny(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value))
+        {
+            return null;
+        }
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.TryGetInt64(out var number) ? number : null,
+            JsonValueKind.String when long.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => null,
+        };
+    }
 
     private static long? GetLong(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) &&

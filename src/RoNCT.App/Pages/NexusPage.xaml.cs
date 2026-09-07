@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,6 +14,8 @@ public sealed partial class NexusPage : Page, ILocalizablePage
 
     private readonly List<NexusModInfo> _identified = new();
     private MainWindow? _window;
+
+    public ObservableCollection<NexusResultRow> ResultRows { get; } = new();
 
     public NexusPage()
     {
@@ -135,24 +138,98 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             return;
         }
 
-        ResultList.Items.Clear();
+        ResultRows.Clear();
         _identified.Clear();
         StatusText.Text = Localizer.T("Nexus.Identifying");
+        var found = 0;
+        var candidates = 0;
+        var errors = 0;
         foreach (var mod in mods)
         {
-            var md5 = NexusClient.Md5(mod.FilePath);
-            var info = await NexusClient.GetModByMd5Async(key, md5);
-            var line = info is not null
-                ? $"{mod.FileName}  ->  {info.Name} ({info.ModId})"
-                : $"{mod.FileName}  ->  {Localizer.T("Nexus.NotFound")}";
-            ResultList.Items.Add(line);
-            if (info is not null)
+            StatusText.Text = Localizer.T("Nexus.Identifying") + "  " + mod.FileName;
+            try
             {
-                _identified.Add(info);
+                var md5 = NexusClient.Md5(mod.FilePath);
+                var matches = await NexusClient.SearchMd5Async(key, md5);
+                if (matches.Count > 0)
+                {
+                    var info = matches[0];
+                    _identified.Add(info);
+                    found++;
+                    ResultRows.Add(new NexusResultRow(
+                        mod.FileName,
+                        Localizer.T("Nexus.Status.Found"),
+                        info.Name ?? mod.FileName,
+                        info.Author ?? string.Empty,
+                        info.ModUrl ?? string.Empty));
+                    continue;
+                }
+
+                var best = await FindBestCandidateAsync(key, mod.FileName);
+                if (best is not null)
+                {
+                    _identified.Add(best);
+                    candidates++;
+                    ResultRows.Add(new NexusResultRow(
+                        mod.FileName,
+                        Localizer.T("Nexus.Status.Candidate"),
+                        best.Name ?? Localizer.T("Nexus.NotFound"),
+                        best.Author ?? string.Empty,
+                        best.ModUrl ?? string.Empty));
+                }
+                else
+                {
+                    ResultRows.Add(new NexusResultRow(
+                        mod.FileName,
+                        Localizer.T("Nexus.Status.Unknown"),
+                        string.Empty,
+                        string.Empty,
+                        string.Empty));
+                }
+            }
+            catch (Exception exc)
+            {
+                errors++;
+                AppLog.Error($"NexusPage identify failed for {mod.FileName}: {exc.Message}");
+                ResultRows.Add(new NexusResultRow(
+                    mod.FileName,
+                    Localizer.T("Nexus.Status.Error"),
+                    exc.Message,
+                    string.Empty,
+                    string.Empty));
             }
         }
+
         StatusText.Text = string.Format(
-            Localizer.T("Nexus.Identified"), _identified.Count, mods.Count);
+            Localizer.T("Nexus.IdentifySummary"),
+            found,
+            candidates,
+            errors,
+            mods.Count);
+    }
+
+    private static async Task<NexusModInfo?> FindBestCandidateAsync(
+        string key,
+        string fileName)
+    {
+        var candidates = await NexusClient.SearchCandidatesAsync(key, fileName);
+        return candidates.FirstOrDefault();
+    }
+
+    private async void ResultList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not NexusResultRow { Url: string url } || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
+        {
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("NexusPage open result failed: " + exc.Message);
+        }
     }
 
     private async void BtnDeps_Click(object sender, RoutedEventArgs e)
@@ -182,10 +259,16 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             }
         }
 
-        ResultList.Items.Clear();
+        ResultRows.Clear();
         foreach (var line in missing.Distinct())
         {
-            ResultList.Items.Add(line);
+            var parts = line.Split(" needs ", 2);
+            ResultRows.Add(new NexusResultRow(
+                parts.Length > 0 ? parts[0] : line,
+                Localizer.T("Nexus.Dep"),
+                parts.Length > 1 ? parts[1] : line,
+                string.Empty,
+                string.Empty));
         }
         StatusText.Text = string.Format(Localizer.T("Nexus.DepsSummary"), missing.Count);
     }

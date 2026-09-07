@@ -33,7 +33,30 @@
                 <Button x:Name="BtnDeps" Click="BtnDeps_Click" />
             </StackPanel>
 
-            <ListView x:Name="ResultList" MaxHeight="320" SelectionMode="None" />
+            <ListView
+                x:Name="ResultList"
+                MaxHeight="320"
+                SelectionMode="None"
+                IsItemClickEnabled="True"
+                ItemClick="ResultList_ItemClick"
+                ItemsSource="{x:Bind ResultRows}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.5*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="2.2*" />
+                                <ColumnDefinition Width="1.2*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding FileName}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding Status}" Opacity="0.7" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding Detail}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="3" Text="{Binding Author}" Opacity="0.7" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
             <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />
         </StackPanel>
     </ScrollViewer>

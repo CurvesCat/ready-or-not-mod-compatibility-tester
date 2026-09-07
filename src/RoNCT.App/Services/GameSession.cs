@@ -170,6 +170,7 @@ public sealed class GameSession
         var lastClick = start;
         var idleMonitor = new CpuIdleMonitor();
         var lastCpuSampleAt = start;
+        var lastOcrAt = start;
         double? lastCpuTotalMs = GameProcessService.SampleTotalCpuMs(process);
         nint mainHwnd = 0;
         var clicks = 0;
@@ -254,6 +255,24 @@ public sealed class GameSession
             {
                 menuAt = now;
                 _emitLog("  Detected main-menu idle, entering confirmation window...");
+            }
+            if (windowAt is not null && menuAt is null &&
+                mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 2.5)
+            {
+                lastOcrAt = now;
+                var ocr = GameMenuOcrDetector.ScanBlocking(mainHwnd);
+                if (ocr.MenuLikely)
+                {
+                    menuAt = now;
+                    AppLog.Log(
+                        "OCR main-menu text detected: " +
+                        string.Join(" / ", ocr.Lines.Take(5)));
+                    _emitLog(
+                        "  Detected main-menu by screen text" +
+                        (ocr.Lines.Count > 0
+                            ? ": " + string.Join(" / ", ocr.Lines.Take(3))
+                            : string.Empty));
+                }
             }
 
             var newCrash = NewCrashDirs(crashBaseline);

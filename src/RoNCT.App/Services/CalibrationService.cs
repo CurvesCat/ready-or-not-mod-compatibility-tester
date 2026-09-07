@@ -52,6 +52,8 @@ public static class CalibrationService
         var offset = 0;
         var idleMonitor = new CpuIdleMonitor();
         var lastCpuSampleAt = DateTime.UtcNow;
+        var lastOcrAt = DateTime.UtcNow;
+        nint mainHwnd = 0;
         double? lastCpuTotalMs = GameProcessService.SampleTotalCpuMs(process);
 
         try
@@ -66,6 +68,7 @@ public static class CalibrationService
                 if (windows.Count > 0 && windowAt is null)
                 {
                     windowAt = elapsed;
+                    mainHwnd = windows[0].Hwnd;
                     log($"Calibration: main window appeared at {windowAt:0.0}s.");
                 }
                 if (windows.Count > 0 && windowAt is not null &&
@@ -103,6 +106,22 @@ public static class CalibrationService
                 {
                     menuAt = elapsed;
                     log($"Calibration: main-menu idle detected at {menuAt:0.0}s.");
+                }
+                if (windowAt is not null && menuAt is null &&
+                    mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 2.5)
+                {
+                    lastOcrAt = now;
+                    var ocr = GameMenuOcrDetector.ScanBlocking(mainHwnd);
+                    if (ocr.MenuLikely)
+                    {
+                        menuAt = elapsed;
+                        log(
+                            $"Calibration: main-menu screen text detected at " +
+                            $"{menuAt:0.0}s" +
+                            (ocr.Lines.Count > 0
+                                ? ": " + string.Join(" / ", ocr.Lines.Take(3))
+                                : string.Empty));
+                    }
                 }
 
                 if (process.HasExited)

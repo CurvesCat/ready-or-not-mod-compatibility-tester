@@ -40,6 +40,11 @@
             <TextBox x:Name="StableBox" />
             <TextBox x:Name="StartupBox" />
             <TextBox x:Name="MenuHoldBox" />
+            <Button x:Name="BtnCalibrateNow" Click="BtnCalibrateNow_Click" />
+            <ProgressBar
+                x:Name="CalibrateProgress"
+                Visibility="Collapsed"
+                IsIndeterminate="True" />
 
             <TextBlock x:Name="ToolsSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
             <Grid ColumnSpacing="8">

@@ -7,6 +7,7 @@ namespace RoNCT.App.Pages;
 public sealed partial class AdvancedPage : Page, ILocalizablePage
 {
     private MainWindow? _window;
+    private bool _calibrating;
 
     private static readonly string KnownGameRoot =
         @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not";
@@ -31,6 +32,7 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         TimingSectionText.Text = Localizer.T("Settings.Timing");
         ToolsSectionText.Text = Localizer.T("Settings.Tools");
         BackupSectionText.Text = Localizer.T("Settings.Backup");
+        BtnCalibrateNow.Content = Localizer.T("Settings.CalibrateNow");
         BtnSave.Content = Localizer.T("Settings.Save");
         GameRootBox.Header = Localizer.T("Settings.GameRoot");
         ExePathBox.Header = Localizer.T("Settings.ExePath");
@@ -128,6 +130,13 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
 
     private void BtnSave_Click(object sender, RoutedEventArgs e)
     {
+        PersistEdits();
+        AppLog.UserAction("settings_saved");
+        StatusText.Text = Localizer.T("Settings.Saved");
+    }
+
+    private void PersistEdits()
+    {
         var cfg = AppSettings.Current;
         cfg.GameRoot = GameRootBox.Text.Trim();
         cfg.ExePath = ExePathBox.Text.Trim();
@@ -154,8 +163,80 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         cfg.BackupDir = BackupDirBox.Text.Trim();
         cfg.QuarantineDir = QuarantineDirBox.Text.Trim();
         AppSettings.Save();
-        AppLog.UserAction("settings_saved");
-        StatusText.Text = Localizer.T("Settings.Saved");
+    }
+
+    private async void BtnCalibrateNow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_calibrating)
+        {
+            return;
+        }
+
+        PersistEdits();
+        var cfg = AppSettings.Current;
+        var exe = !string.IsNullOrEmpty(cfg.ExePath)
+            ? cfg.ExePath
+            : (File.Exists(KnownExe) ? KnownExe : string.Empty);
+        if (string.IsNullOrEmpty(exe))
+        {
+            StatusText.Text = Localizer.T("Settings.CalibrateNoExe");
+            return;
+        }
+
+        AppLog.UserAction("calibrate_now");
+        _calibrating = true;
+        BtnCalibrateNow.IsEnabled = false;
+        CalibrateProgress.Visibility = Visibility.Visible;
+        StatusText.Text = Localizer.T("Settings.Calibrating");
+        var queue = _window?.DispatcherQueue;
+        var logDir = Path.Combine(AppSettings.DataDirectory, "logs");
+
+        try
+        {
+            var cal = await Task.Run(() => CalibrationService.Run(
+                exe,
+                cfg.ExtraArgs,
+                logDir,
+                cfg.StartupTimeoutSeconds,
+                120,
+                message => queue?.TryEnqueue(() => StatusText.Text = message)));
+
+            var windowSeconds = cal.WindowSeconds ?? 0;
+            var suggestedStartup = Math.Min(
+                900,
+                Math.Max(60, (int)Math.Ceiling(windowSeconds * 1.8) + 30));
+            suggestedStartup = Math.Max(
+                suggestedStartup, (int)Math.Ceiling(cfg.StartupTimeoutSeconds));
+
+            cfg.StableSeconds = cal.SuggestedStable;
+            cfg.StartupTimeoutSeconds = suggestedStartup;
+            AppSettings.Save();
+
+            StableBox.Text = cfg.StableSeconds.ToString();
+            StartupBox.Text = cfg.StartupTimeoutSeconds.ToString();
+            StatusText.Text = string.Format(
+                Localizer.T("Settings.CalibrateDone"),
+                cal.WindowSeconds.HasValue
+                    ? cal.WindowSeconds.Value.ToString("0.0") + "s"
+                    : Localizer.T("Settings.CalibrateUnknown"),
+                cal.MenuSeconds.HasValue
+                    ? cal.MenuSeconds.Value.ToString("0.0") + "s"
+                    : Localizer.T("Settings.CalibrateUnknown"),
+                cfg.StableSeconds.ToString("0"),
+                cfg.StartupTimeoutSeconds.ToString("0"));
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("AdvancedPage calibration failed: " + exc);
+            StatusText.Text = string.Format(
+                Localizer.T("Settings.CalibrateFailed"), exc.Message);
+        }
+        finally
+        {
+            _calibrating = false;
+            BtnCalibrateNow.IsEnabled = true;
+            CalibrateProgress.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void BtnBrowseGameRoot_Click(object sender, RoutedEventArgs e) =>

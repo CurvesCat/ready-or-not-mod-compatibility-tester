@@ -2,6 +2,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using System.Diagnostics;
 using RoNCT.App.Pages;
 using RoNCT.App.Services;
 
@@ -9,8 +10,16 @@ namespace RoNCT.App;
 
 public sealed partial class MainWindow : Window
 {
+    private const string AppDisplayName = "RoN Mod 兼容性测试器";
+    private const string Author = "CurvesCat";
+    private const string ContactEmail = "ronct.dev@icloud.com";
+    private const string GitHubUrl =
+        "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester";
+    private const string LicenseName = "PolyForm Noncommercial 1.0.0";
+
     private readonly Dictionary<string, Page> _pages = new();
     private bool _initializingTheme;
+    private bool _dialogOpen;
 
     public MainWindow()
     {
@@ -22,6 +31,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1120, 720));
+        UpdateTitleBarActionsInset();
+        RootGrid.SizeChanged += (_, _) => UpdateTitleBarActionsInset();
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
         if (File.Exists(iconPath))
@@ -50,6 +61,26 @@ public sealed partial class MainWindow : Window
             .FirstOrDefault();
         var raw = attribute?.InformationalVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
         return raw.Split('+')[0];
+    }
+
+    /// <summary>
+    /// Keeps the title-bar action buttons clear of the system caption
+    /// buttons. The TitleBar template reserves a small drag region on the
+    /// right, so the extra margin is derived from AppWindow's RightInset.
+    /// </summary>
+    private void UpdateTitleBarActionsInset()
+    {
+        try
+        {
+            const double templateReserved = 48;
+            var inset = AppWindow.TitleBar.RightInset;
+            var extra = Math.Max(0, inset - templateReserved + 12);
+            TitleBarActionsPanel.Margin = new Thickness(0, 0, extra, 0);
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("MainWindow title-bar inset update failed: " + exc.Message);
+        }
     }
 
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args)
@@ -167,6 +198,8 @@ public sealed partial class MainWindow : Window
 
     private void ApplyLanguage()
     {
+        TitleHelpButton.Content = Localizer.T("TitleBar.Help");
+        TitleAboutButton.Content = Localizer.T("TitleBar.About");
         NavTestItem.Content = Localizer.T("Nav.Test");
         NavNexusItem.Content = Localizer.T("Nav.Nexus");
         NavBackupItem.Content = Localizer.T("Nav.Backup");
@@ -183,6 +216,123 @@ public sealed partial class MainWindow : Window
             {
                 localizable.ApplyLanguage();
             }
+        }
+    }
+
+    private async void TitleHelpButton_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.UserAction("open_help");
+        var body = new TextBlock
+        {
+            Text = HelpTutorial.For(Localizer.CurrentLanguage),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 22,
+        };
+        var scroll = new ScrollViewer
+        {
+            Content = body,
+            MaxHeight = 460,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+        var dialog = new ContentDialog
+        {
+            Title = Localizer.T("Help.Title"),
+            Content = scroll,
+            CloseButtonText = Localizer.T("Help.Close"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootGrid.XamlRoot,
+        };
+        await ShowExclusiveDialogAsync(dialog);
+    }
+
+    private async void TitleAboutButton_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.UserAction("open_about");
+
+        var heading = new TextBlock
+        {
+            Text = $"RoNCT v{GetInformationalVersion()}",
+            Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"],
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        };
+        var mailButton = new HyperlinkButton
+        {
+            Content = ContactEmail,
+            NavigateUri = new Uri($"mailto:{ContactEmail}"),
+        };
+        var githubButton = new HyperlinkButton
+        {
+            Content = Localizer.T("About.GitHub"),
+            NavigateUri = new Uri(GitHubUrl),
+        };
+        var content = new StackPanel
+        {
+            MinWidth = 380,
+            Spacing = 4,
+            Children =
+            {
+                heading,
+                new TextBlock
+                {
+                    Text = Localizer.T("About.Name"),
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = 0.9,
+                },
+                new TextBlock
+                {
+                    Text = string.Format(Localizer.T("About.Author"), Author),
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = 0.9,
+                },
+                new TextBlock
+                {
+                    Text = Localizer.T("About.Contact"),
+                    Margin = new Thickness(0, 12, 0, 0),
+                    Opacity = 0.7,
+                },
+                mailButton,
+                githubButton,
+                new TextBlock
+                {
+                    Text = string.Format(Localizer.T("About.License"), LicenseName),
+                    Margin = new Thickness(0, 12, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = 0.7,
+                },
+            },
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = Localizer.T("About.Title"),
+            Content = content,
+            CloseButtonText = Localizer.T("About.Close"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootGrid.XamlRoot,
+        };
+        await ShowExclusiveDialogAsync(dialog);
+    }
+
+    /// <summary>
+    /// WinUI allows only one ContentDialog per XamlRoot at a time. This guard
+    /// prevents two title-bar buttons from opening overlapping dialogs.
+    /// </summary>
+    private async Task<ContentDialogResult> ShowExclusiveDialogAsync(
+        ContentDialog dialog)
+    {
+        if (_dialogOpen)
+        {
+            return ContentDialogResult.None;
+        }
+
+        _dialogOpen = true;
+        try
+        {
+            return await dialog.ShowAsync();
+        }
+        finally
+        {
+            _dialogOpen = false;
         }
     }
 

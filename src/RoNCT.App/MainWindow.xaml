@@ -25,6 +25,21 @@
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="Assets/AppIcon.ico" />
             </TitleBar.IconSource>
+            <TitleBar.RightHeader>
+                <StackPanel
+                    x:Name="TitleBarActionsPanel"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        x:Name="TitleHelpButton"
+                        Click="TitleHelpButton_Click"
+                        Padding="12,5" />
+                    <Button
+                        x:Name="TitleAboutButton"
+                        Click="TitleAboutButton_Click"
+                        Padding="12,5" />
+                </StackPanel>
+            </TitleBar.RightHeader>
         </TitleBar>
 
         <NavigationView

@@ -52,4 +52,46 @@ public sealed class ModFolderOperatorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_modDir, "b.pak")));
         Assert.Equal(0, Directory.EnumerateFiles(_sessionRoot).Count());
     }
+
+    [Fact]
+    public void ParkOthers_NeverMovesBaseGamePaks()
+    {
+        File.WriteAllText(Path.Combine(_modDir, "pakchunk0-Windows.pak"), "system");
+        File.WriteAllText(Path.Combine(_modDir, "a.pak"), "a");
+        var op = new ModFolderOperator(_modDir, _sessionRoot);
+
+        var parked = op.ParkOthers(Array.Empty<string>());
+
+        Assert.DoesNotContain("pakchunk0-Windows.pak", parked);
+        Assert.True(File.Exists(Path.Combine(_modDir, "pakchunk0-Windows.pak")));
+        Assert.True(File.Exists(Path.Combine(_sessionRoot, "a.pak")));
+    }
+
+    [Fact]
+    public void InstalledModNames_ReturnsOnlyNonSystemPaks()
+    {
+        File.WriteAllText(Path.Combine(_modDir, "pakchunk24-Windows.pak"), "system");
+        File.WriteAllText(Path.Combine(_modDir, "pakchunk99-Mods_MyMod_P.pak"), "mod");
+        File.WriteAllText(Path.Combine(_modDir, "notes.txt"), "not a pak");
+        var op = new ModFolderOperator(_modDir, _sessionRoot);
+
+        var names = op.InstalledModNames();
+
+        Assert.Equal(new[] { "pakchunk99-Mods_MyMod_P.pak" }, names);
+    }
+
+    [Fact]
+    public void ParkOthers_WhenSessionTargetAlreadyExists_ThrowsWithoutMoving()
+    {
+        File.WriteAllText(Path.Combine(_modDir, "a.pak"), "a");
+        File.WriteAllText(Path.Combine(_modDir, "b.pak"), "b");
+        Directory.CreateDirectory(_sessionRoot);
+        File.WriteAllText(Path.Combine(_sessionRoot, "b.pak"), "leftover");
+        var op = new ModFolderOperator(_modDir, _sessionRoot);
+
+        Assert.Throws<IOException>(() => op.ParkOthers(new[] { "a.pak" }));
+
+        Assert.True(File.Exists(Path.Combine(_modDir, "b.pak")));
+        Assert.Equal("leftover", File.ReadAllText(Path.Combine(_sessionRoot, "b.pak")));
+    }
 }

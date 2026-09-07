@@ -49,9 +49,12 @@ IAssetAnalyzer        Uses IPakInspector + IAssetParser; produces edges
 - Current adapters: `RepakProcess` implements `IPakInspector/IPakFileReader`
   via repak; `UAssetCliParser` implements `IAssetParser` via a dotnet
   subprocess. These exist for fallback and were already used to prove formats.
-- Target adapters (default when available):
+- Target adapters (default when available; license-safe by design):
   - `Cue4PakInspector` — CUE4Parse lists and reads pak files in-process.
-  - `UAssetApiParser` — UAssetAPI parses `.uasset/.uexp` in-process.
+  - `Cue4AssetParser` — CUE4Parse parses `.uasset` import tables in-process.
+    UAssetAPI (GPL-3.0) is intentionally **not** linked in-process because it
+    would conflict with the app's PolyForm Noncommercial license; the legacy
+    UAssetCLI subprocess remains the only UAssetAPI-based path.
   - This removes one subprocess per asset; for ~100+ assets that is the whole
     1-minute → ~10-second gap.
 - Selection between implementations is decided once by
@@ -135,8 +138,8 @@ of remaining work except regression checks.
   verified end-to-end (game launched, Ok, closed, reports written).
 - **M1 — Isolation** (`IModFolderOperator` + session parking/restore +
   `GameSession` per group). Unlocks true per-mod verdicts.
-- **M2 — In-process analysis** (CUE4Parse + UAssetAPI behind interfaces;
-  benchmark vs subprocess path; target seconds).
+- **M2 — In-process analysis** (CUE4Parse behind interfaces; benchmark vs
+  subprocess path; target seconds).
 - **M3 — Nexus/parity regression**, calibration wiring, remaining Python
   features that are still missing (compare against Python v0.4 UI list).
 - **M4 — Release engineering**: self-contained publish fix, Inno Setup,
@@ -150,8 +153,9 @@ of remaining work except regression checks.
 - **Moving installed mods** is risky → park/restore only via
   `IModFolderOperator` with backups and startup recovery; tests run in a sandbox
   folder before first use on the real game folder.
-- **CUE4Parse/UAssetAPI API drift** → keep repak/UAssetCLI fallback and
-  fixture tests against real sample paks.
+- **CUE4Parse API drift** → keep repak/UAssetCLI fallback and fixture tests
+  against real sample paks. Adding a GPL parser in-process is not an option
+  under the PolyForm Noncommercial license.
 
 ## 11. Immediate next actions
 
@@ -159,4 +163,3 @@ of remaining work except regression checks.
 2. Wire M1 into TestRunner (group per mod).
 3. Run an end-to-end verification with 2-3 real mods (game launches a few
    times, ~3-5 minutes) and compare per-mod verdicts with manual reality.
-

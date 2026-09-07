@@ -15,9 +15,24 @@ the user-reported Python-era scan duration.
 
 ## After (in-process path)
 
-Release-mode harness that mirrors `DependencyScanner`'s in-process flow
-(`Cue4AnalysisSession` reused per pak + `Cue4AssetParser` per asset, including
-.uexp reads):
+Release-mode run of the real `DependencyScanner.RunAsync` service with the
+in-process adapters (`Cue4AnalysisSession` + `Cue4AssetParser`, unlimited
+asset limit, including .uexp reads and static conflict scanning):
+
+| Metric | Result |
+| --- | --- |
+| Paks listed | 38 |
+| Assets parsed | 8,623 |
+| Dependency edges | 27 |
+| Unresolved `/Game/Mods/...` references | 9,409 |
+| Static conflicts | 6 |
+| Total elapsed | **8.00 s** |
+
+A minimal in-process harness (same adapters, no conflict read-back) measured
+**4.61 s** for the same dataset, and listing + import parsing without .uexp
+reads measured 1.58 s.
+
+Parse-only harness (same in-process adapters, no conflict read-back):
 
 | Metric | Result |
 | --- | --- |
@@ -25,11 +40,12 @@ Release-mode harness that mirrors `DependencyScanner`'s in-process flow
 | Assets parsed | 8,623 |
 | Parse failures | 0 |
 | Import/game references found | 16,737 |
-| Total elapsed | **4.61 s** |
+| Total elapsed (parse harness) | **4.61 s** |
 
-The scan is ~13× faster than the previous per-asset subprocess model even
-including `.uexp` reads, comfortably inside the "seconds, not a minute"
-target. Listing-only + import parsing without `.uexp` reads measured 1.58 s.
+The full service pipeline (conflict read-back included) runs in 8 s for the
+entire 8,623-asset folder, comfortably inside the "seconds, not a minute"
+target; the previous per-asset subprocess model would need many minutes for
+the same dataset.
 
 ## Notes
 

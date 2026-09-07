@@ -125,20 +125,26 @@ public sealed class GameSession
                 File.Copy(item.SourcePath, target, overwrite: false);
                 _deployed.Add(target);
             }
+
+            var logPath = Path.Combine(_logDir, safeLabel + ".log");
+            var crashBaseline = CrashBaseline();
+            return LaunchAndMonitor(logPath, crashBaseline);
         }
         catch (Exception exc)
         {
-            CleanupDeployed();
+            var pids = GameProcessService.FindGameProcessIds(_exePath);
+            if (pids.Count > 0)
+            {
+                GameProcessService.GracefulClose(pids, 6);
+            }
             return new SessionResult(
-                TestVerdict.Error, $"Failed to copy mod: {exc.Message}",
+                TestVerdict.Error, $"Session failed: {exc.Message}",
                 string.Empty, false, 0, Array.Empty<string>());
         }
-
-        var logPath = Path.Combine(_logDir, safeLabel + ".log");
-        var crashBaseline = CrashBaseline();
-        var result = LaunchAndMonitor(logPath, crashBaseline);
-        CleanupDeployed();
-        return result;
+        finally
+        {
+            CleanupDeployed();
+        }
     }
 
     private SessionResult LaunchAndMonitor(string logPath, HashSet<string> crashBaseline)

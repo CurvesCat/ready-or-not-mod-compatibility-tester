@@ -139,7 +139,7 @@ public static class TestRunner
         }
 
         var plan = await BuildPlanAsync(
-            config, mods, byName, emit, cancellationToken);
+            config, mods, emit, cancellationToken);
         emit(
             $"Planned {plan.Groups.Count} test group(s) " +
             $"({plan.ConflictPairs.Count} conflict pair(s)).");
@@ -251,7 +251,6 @@ public static class TestRunner
     private static async Task<DeployPlan> BuildPlanAsync(
         AppConfig config,
         IReadOnlyList<ModItem> mods,
-        IReadOnlyDictionary<string, List<ModItem>> byName,
         Action<string> emit,
         CancellationToken cancellationToken)
     {
@@ -464,12 +463,10 @@ public static class TestRunner
                 () => session.Run(deployItems, safeLabel),
                 cancellationToken);
 
-            RemoveDeployed(deployItems, gameModDir);
             return result;
         }
         catch (Exception exc)
         {
-            RemoveDeployed(deployItems, gameModDir);
             return new SessionResult(
                 TestVerdict.Error,
                 $"Session failed: {exc.Message}",
@@ -573,25 +570,6 @@ public static class TestRunner
                 false,
                 0,
                 Array.Empty<string>()));
-
-    private static void RemoveDeployed(IEnumerable<DeploySource> items, string gameModDir)
-    {
-        foreach (var item in items)
-        {
-            try
-            {
-                var target = Path.Combine(gameModDir, item.TargetName);
-                if (File.Exists(target))
-                {
-                    File.Delete(target);
-                }
-            }
-            catch
-            {
-                // best effort; GameSession already cleans its own copies
-            }
-        }
-    }
 
     private static bool TryDeleteSessionBase(string sessionBase, Action<string> emit)
     {

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using RoNCT.Analysis;
 using RoNCT.App.Services;
 using RoNCT.Core.Analysis;
 using RoNCT.Core.Plan;
@@ -176,70 +177,40 @@ public sealed partial class TestPage : Page, ILocalizablePage
             return;
         }
 
-        var repak = ResolveRepakExe();
-        var dotnet = ResolveDotnetExe();
-        var cli = ResolveUAssetCliDll();
-        if (string.IsNullOrEmpty(repak) || !File.Exists(repak) ||
-            string.IsNullOrEmpty(dotnet) || !File.Exists(dotnet) ||
-            string.IsNullOrEmpty(cli) || !File.Exists(cli))
-        {
-            LogText.Text = Localizer.T("Analysis.ToolMissing");
-            return;
-        }
-
         Progress.Visibility = Visibility.Visible;
-        var result = await DependencyScanner.RunAsync(
-            repak,
-            dotnet,
-            cli,
-            string.IsNullOrEmpty(AppSettings.Current.Engine) ? "VER_UE5_4" : AppSettings.Current.Engine,
-            items,
-            AppSettings.Current.AssetLimit > 0 ? AppSettings.Current.AssetLimit : 100);
-        Progress.Visibility = Visibility.Collapsed;
-
-        LogText.Text = string.Format(
-            Localizer.T("Analysis.RunSummary"),
-            result.Paks,
-            result.ParsedAssets,
-            result.Edges,
-            result.Unresolved,
-            result.Conflicts);
-    }
-
-    private static string ResolveRepakExe()
-    {
-        var configured = AppSettings.Current.RepakExe;
-        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        try
         {
-            return configured;
+            using var session = new Cue4AnalysisSession();
+            var result = await DependencyScanner.RunAsync(
+                repakExe: null,
+                dotnetExe: null,
+                uassetCliDll: null,
+                string.IsNullOrEmpty(AppSettings.Current.Engine)
+                    ? "VER_UE5_4"
+                    : AppSettings.Current.Engine,
+                items,
+                AppSettings.Current.AssetLimit > 0 ? AppSettings.Current.AssetLimit : 100,
+                default,
+                session,
+                session,
+                new Cue4AssetParser());
+
+            LogText.Text = string.Format(
+                Localizer.T("Analysis.RunSummary"),
+                result.Paks,
+                result.ParsedAssets,
+                result.Edges,
+                result.Unresolved,
+                result.Conflicts);
         }
-
-        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\repak\repak.exe";
-        return File.Exists(known) ? known : configured ?? string.Empty;
-    }
-
-    private static string ResolveDotnetExe()
-    {
-        var configured = AppSettings.Current.DotnetExe;
-        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        catch (Exception exc)
         {
-            return configured;
+            LogText.Text = exc.Message;
         }
-
-        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\dotnet10\dotnet.exe";
-        return File.Exists(known) ? known : configured ?? string.Empty;
-    }
-
-    private static string ResolveUAssetCliDll()
-    {
-        var configured = AppSettings.Current.UAssetCliDll;
-        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        finally
         {
-            return configured;
+            Progress.Visibility = Visibility.Collapsed;
         }
-
-        var known = @"C:\Users\curve\Documents\Codex\2026-09-05\call-zhi\work\tools\UAssetCLI\UAssetCLI\UAssetCLI.dll";
-        return File.Exists(known) ? known : configured ?? string.Empty;
     }
 
     private void ReloadSelection()

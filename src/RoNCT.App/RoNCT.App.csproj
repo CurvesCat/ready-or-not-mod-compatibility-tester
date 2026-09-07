@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RoNCT.Core\RoNCT.Core.csproj" />
+    <ProjectReference Include="..\RoNCT.Analysis\RoNCT.Analysis.csproj" />
   </ItemGroup>
 
   <!-- Publish Properties -->

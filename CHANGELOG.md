@@ -2,6 +2,20 @@
 
 All notable changes to RoNCT are documented here.
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- GitHub-based "Check for updates": queries GitHub Releases for the newest
+  version, compares it with the local version, and links to the release page.
+- The application version is now the single source of truth (`ron_mod_tester`
+  `VERSION`) and the About dialog reflects it.
+
+### Notes
+
+- The experimental C# / WinUI 3 rewrite has been shelved. Development continues
+  on this Python implementation, which is the supported release line.
+
 ## [0.4.2] - 2026-09-06
 
 ### Fixed

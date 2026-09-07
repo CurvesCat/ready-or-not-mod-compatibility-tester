@@ -69,6 +69,8 @@ Maintainer contact: [ronct.dev@icloud.com](mailto:ronct.dev@icloud.com)
   - confirm/ignore matches (remembered locally),
   - check Nexus "Requirements" and summarize missing prerequisites.
 - Automatic Mod-directory backup and one-click restore.
+- Optional **GitHub-based auto-update**: "Check for updates" queries GitHub
+  Releases for the newest version and opens the release page to download it.
 - All generated data stays inside the software folder by default:
   `reports/`, `quarantine/`, `backup/`, `cache/`, and `debug.log`.
 

@@ -730,6 +730,22 @@ class NexusWorker(QObject):
             self.failed.emit(error)
 
 
+class UpdateWorker(QObject):
+    """Checks GitHub Releases for a newer app version in the background."""
+
+    finished = Signal(object)
+    failed = Signal(object)
+
+    def run(self) -> None:
+        try:
+            from . import updater
+
+            info = updater.check_for_update()
+            self.finished.emit(info)
+        except Exception as exc:  # noqa: BLE001
+            self.failed.emit({"message": str(exc)})
+
+
 class CalibrationWorker(QObject):
     """Launches the game once and estimates stable/startup timing in background."""
 
@@ -1030,6 +1046,7 @@ class MainWindow(QMainWindow):
             (_t("open_backup"), self._open_backup_folder),
             (_t("restore_backup"), self._restore_backup),
             (_t("about"), self._open_about),
+            (_t("check_update"), self._check_update),
         ):
             btn = QPushButton(text)
             btn.setObjectName("navItem")
@@ -3979,6 +3996,54 @@ class MainWindow(QMainWindow):
         lay.addLayout(row)
         dlg.setStyleSheet(fluent_qss(self.dark))
         dlg.exec()
+
+    def _check_update(self) -> None:
+        from . import VERSION
+
+        self._set_status(_t("checking_update"), "warn")
+        worker = UpdateWorker()
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_update_done)
+        worker.failed.connect(self._on_update_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        self._update_thread = thread
+        thread.start()
+
+    def _on_update_done(self, info: dict) -> None:
+        from . import VERSION
+
+        if info.get("newer"):
+            box = QMessageBox(self)
+            box.setWindowTitle(_t("update_found_title"))
+            box.setText(
+                _t("update_found_body").format(
+                    latest=info.get("latest", ""), current=VERSION
+                )
+            )
+            open_btn = box.addButton(_t("update_open_release"), QMessageBox.AcceptRole)
+            box.addButton(QMessageBox.Close)
+            box.exec()
+            if box.clickedButton() is open_btn and info.get("html_url"):
+                QDesktopServices.openUrl(QUrl(info["html_url"]))
+        else:
+            QMessageBox.information(
+                self,
+                _t("update_found_title"),
+                _t("update_latest").format(current=VERSION),
+            )
+        self._set_status(_t("ready_status"), "ok")
+
+    def _on_update_failed(self, err: dict) -> None:
+        QMessageBox.warning(
+            self,
+            _t("update_found_title"),
+            _t("update_error").format(err=err.get("message", "")),
+        )
+        self._set_status(_t("ready_status"), "error")
 
     def _open_about(self) -> None:
         dlg = QDialog(self)

@@ -180,20 +180,23 @@ public sealed partial class TestPage : Page, ILocalizablePage
         Progress.Visibility = Visibility.Visible;
         try
         {
-            using var session = new Cue4AnalysisSession();
-            var result = await DependencyScanner.RunAsync(
-                repakExe: null,
-                dotnetExe: null,
-                uassetCliDll: null,
-                string.IsNullOrEmpty(AppSettings.Current.Engine)
-                    ? "VER_UE5_4"
-                    : AppSettings.Current.Engine,
-                items,
-                AppSettings.Current.AssetLimit > 0 ? AppSettings.Current.AssetLimit : 100,
-                default,
-                session,
-                session,
-                new Cue4AssetParser());
+            var result = await Task.Run(async () =>
+            {
+                using var session = new Cue4AnalysisSession();
+                return await DependencyScanner.RunAsync(
+                    repakExe: null,
+                    dotnetExe: null,
+                    uassetCliDll: null,
+                    string.IsNullOrEmpty(AppSettings.Current.Engine)
+                        ? "VER_UE5_4"
+                        : AppSettings.Current.Engine,
+                    items,
+                    AppSettings.Current.AssetLimit > 0 ? AppSettings.Current.AssetLimit : 100,
+                    default,
+                    session,
+                    session,
+                    new Cue4AssetParser());
+            });
 
             LogText.Text = string.Format(
                 Localizer.T("Analysis.RunSummary"),

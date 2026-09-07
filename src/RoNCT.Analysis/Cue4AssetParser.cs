@@ -55,7 +55,9 @@ public sealed class Cue4AssetParser : IAssetParser
 
     private sealed class EmptyMappingsProvider : ITypeMappingsProvider
     {
-        public TypeMappings? MappingsForGame => new TypeMappings();
+        private static readonly TypeMappings EmptyMappings = new();
+
+        public TypeMappings? MappingsForGame => EmptyMappings;
 
         public void Load(string path, StringComparer? comparer = null) { }
 

@@ -31,8 +31,6 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1120, 720));
-        UpdateTitleBarActionsInset();
-        RootGrid.SizeChanged += (_, _) => UpdateTitleBarActionsInset();
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
         if (File.Exists(iconPath))
@@ -61,26 +59,6 @@ public sealed partial class MainWindow : Window
             .FirstOrDefault();
         var raw = attribute?.InformationalVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
         return raw.Split('+')[0];
-    }
-
-    /// <summary>
-    /// Keeps the title-bar action buttons clear of the system caption
-    /// buttons. The TitleBar template reserves a small drag region on the
-    /// right, so the extra margin is derived from AppWindow's RightInset.
-    /// </summary>
-    private void UpdateTitleBarActionsInset()
-    {
-        try
-        {
-            const double templateReserved = 48;
-            var inset = AppWindow.TitleBar.RightInset;
-            var extra = Math.Max(0, inset - templateReserved + 12);
-            TitleBarActionsPanel.Margin = new Thickness(0, 0, extra, 0);
-        }
-        catch (Exception exc)
-        {
-            AppLog.Error("MainWindow title-bar inset update failed: " + exc.Message);
-        }
     }
 
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args)

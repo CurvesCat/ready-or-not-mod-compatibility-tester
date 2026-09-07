@@ -92,6 +92,10 @@ public sealed partial class MainWindow : Window
             {
                 testPage.AttachWindow(this);
             }
+            else if (page is AdvancedPage advancedPage)
+            {
+                advancedPage.AttachWindow(this);
+            }
         }
 
         NavFrame.Content = page;

@@ -13,33 +13,89 @@
             <TextBlock x:Name="PageBodyText" Opacity="0.8" />
 
             <TextBlock x:Name="GameSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <TextBox x:Name="GameRootBox" Header="GameRoot" />
-            <TextBox x:Name="ExePathBox" Header="ExePath" />
-            <TextBox x:Name="ExtraArgsBox" Header="ExtraArgs" />
-            <CheckBox x:Name="CloseRunningBox" Content="CloseRunning" />
-            <CheckBox x:Name="AutoCalibrateBox" Content="AutoCalibrate" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="GameRootBox" />
+                <Button x:Name="BtnBrowseGameRoot" Grid.Column="1" Content="…" />
+            </Grid>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ExePathBox" />
+                <Button x:Name="BtnBrowseExe" Grid.Column="1" Content="…" />
+            </Grid>
+            <TextBox x:Name="ExtraArgsBox" />
+            <CheckBox x:Name="CloseRunningBox" />
+            <CheckBox x:Name="AutoCalibrateBox" />
 
             <TextBlock x:Name="TimingSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <TextBox x:Name="StableBox" Header="StableSeconds" />
-            <TextBox x:Name="StartupBox" Header="StartupTimeoutSeconds" />
-            <TextBox x:Name="MenuHoldBox" Header="MenuHoldSeconds" />
+            <TextBox x:Name="StableBox" />
+            <TextBox x:Name="StartupBox" />
+            <TextBox x:Name="MenuHoldBox" />
 
             <TextBlock x:Name="ToolsSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <TextBox x:Name="RepakBox" Header="repak.exe" />
-            <TextBox x:Name="DotnetBox" Header="dotnet.exe" />
-            <TextBox x:Name="UAssetCliBox" Header="UAssetCLI.dll" />
-            <TextBox x:Name="EngineBox" Header="Engine" />
-            <TextBox x:Name="AssetLimitBox" Header="AssetLimit" />
-            <TextBox x:Name="WorkersBox" Header="Workers" />
-            <CheckBox x:Name="AnalyzeDepsBox" Content="AnalyzeDeps" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="RepakBox" />
+                <Button x:Name="BtnBrowseRepak" Grid.Column="1" Content="…" />
+            </Grid>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="DotnetBox" />
+                <Button x:Name="BtnBrowseDotnet" Grid.Column="1" Content="…" />
+            </Grid>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="UAssetCliBox" />
+                <Button x:Name="BtnBrowseUAssetCli" Grid.Column="1" Content="…" />
+            </Grid>
+            <TextBox x:Name="EngineBox" />
+            <TextBox x:Name="AssetLimitBox" />
+            <TextBox x:Name="WorkersBox" />
+            <CheckBox x:Name="AnalyzeDepsBox" />
 
             <TextBlock x:Name="BackupSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <CheckBox x:Name="BackupEnabledBox" Content="BackupEnabled" />
-            <TextBox x:Name="BackupMaxFileBox" Header="BackupMaxFileMb" />
-            <TextBox x:Name="BackupMaxTotalBox" Header="BackupMaxTotalMb" />
-            <TextBox x:Name="ReportDirBox" Header="ReportDir" />
-            <TextBox x:Name="BackupDirBox" Header="BackupDir" />
-            <TextBox x:Name="QuarantineDirBox" Header="QuarantineDir" />
+            <CheckBox x:Name="BackupEnabledBox" />
+            <TextBox x:Name="BackupMaxFileBox" />
+            <TextBox x:Name="BackupMaxTotalBox" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ReportDirBox" />
+                <Button x:Name="BtnBrowseReportDir" Grid.Column="1" Content="…" />
+            </Grid>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="BackupDirBox" />
+                <Button x:Name="BtnBrowseBackupDir" Grid.Column="1" Content="…" />
+            </Grid>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="QuarantineDirBox" />
+                <Button x:Name="BtnBrowseQuarantineDir" Grid.Column="1" Content="…" />
+            </Grid>
 
             <Button x:Name="BtnSave" Click="BtnSave_Click" />
             <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />

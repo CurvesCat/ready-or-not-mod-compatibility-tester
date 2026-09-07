@@ -31,4 +31,19 @@ public static class WindowsPicker
         var folder = await picker.PickSingleFolderAsync();
         return folder?.Path;
     }
+
+    public static async Task<string?> PickSingleFileAsync(
+        Microsoft.UI.Xaml.Window window,
+        IReadOnlyList<string> extensions)
+    {
+        var picker = new FileOpenPicker();
+        foreach (var extension in extensions)
+        {
+            picker.FileTypeFilter.Add(extension);
+        }
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, GetWindowHandle(window));
+
+        var file = await picker.PickSingleFileAsync();
+        return file?.Path;
+    }
 }

@@ -6,12 +6,22 @@ namespace RoNCT.App.Pages;
 
 public sealed partial class AdvancedPage : Page, ILocalizablePage
 {
+    private MainWindow? _window;
+
+    private static readonly string KnownGameRoot =
+        @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not";
+    private static readonly string KnownExe =
+        @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Binaries\Win64\ReadyOrNotSteam-Win64-Shipping.exe";
+
     public AdvancedPage()
     {
         InitializeComponent();
         LoadSettings();
         ApplyLanguage();
     }
+
+    public void AttachWindow(MainWindow window) =>
+        _window = window;
 
     public void ApplyLanguage()
     {
@@ -48,18 +58,23 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
     private void LoadSettings()
     {
         var cfg = AppSettings.Current;
-        GameRootBox.Text = cfg.GameRoot;
-        ExePathBox.Text = cfg.ExePath;
+        GameRootBox.Text = !string.IsNullOrEmpty(cfg.GameRoot)
+            ? cfg.GameRoot
+            : (Directory.Exists(KnownGameRoot) ? KnownGameRoot : string.Empty);
+        ExePathBox.Text = !string.IsNullOrEmpty(cfg.ExePath)
+            ? cfg.ExePath
+            : (File.Exists(KnownExe) ? KnownExe : string.Empty);
         ExtraArgsBox.Text = cfg.ExtraArgs;
         CloseRunningBox.IsChecked = cfg.CloseRunning;
         AutoCalibrateBox.IsChecked = cfg.AutoCalibrate;
         StableBox.Text = cfg.StableSeconds.ToString();
         StartupBox.Text = cfg.StartupTimeoutSeconds.ToString();
         MenuHoldBox.Text = cfg.MenuHoldSeconds.ToString();
-        RepakBox.Text = cfg.RepakExe;
-        DotnetBox.Text = cfg.DotnetExe;
-        UAssetCliBox.Text = cfg.UAssetCliDll;
-        EngineBox.Text = cfg.Engine;
+        RepakBox.Text = ResolveTool(cfg.RepakExe, "repak", "repak.exe");
+        DotnetBox.Text = ResolveTool(cfg.DotnetExe, "dotnet10", "dotnet.exe");
+        UAssetCliBox.Text = ResolveTool(
+            cfg.UAssetCliDll, "UAssetCLI", "UAssetCLI", "UAssetCLI.dll");
+        EngineBox.Text = string.IsNullOrEmpty(cfg.Engine) ? "VER_UE5_4" : cfg.Engine;
         AssetLimitBox.Text = cfg.AssetLimit.ToString();
         WorkersBox.Text = cfg.Workers.ToString();
         AnalyzeDepsBox.IsChecked = cfg.AnalyzeDeps;
@@ -69,6 +84,17 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         ReportDirBox.Text = cfg.ReportDir;
         BackupDirBox.Text = cfg.BackupDir;
         QuarantineDirBox.Text = cfg.QuarantineDir;
+    }
+
+    private static string ResolveTool(string configured, params string[] parts)
+    {
+        if (!string.IsNullOrEmpty(configured))
+        {
+            return configured;
+        }
+        var path = Path.Combine(
+            AppSettings.DataDirectory, "tools", Path.Combine(parts));
+        return File.Exists(path) ? path : string.Empty;
     }
 
     private void BtnSave_Click(object sender, RoutedEventArgs e)
@@ -85,9 +111,7 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         cfg.RepakExe = RepakBox.Text.Trim();
         cfg.DotnetExe = DotnetBox.Text.Trim();
         cfg.UAssetCliDll = UAssetCliBox.Text.Trim();
-        cfg.Engine = string.IsNullOrEmpty(EngineBox.Text.Trim())
-            ? "VER_UE5_4"
-            : EngineBox.Text.Trim();
+        cfg.Engine = string.IsNullOrEmpty(EngineBox.Text.Trim()) ? "VER_UE5_4" : EngineBox.Text.Trim();
         if (int.TryParse(AssetLimitBox.Text, out var v4)) cfg.AssetLimit = v4;
         if (int.TryParse(WorkersBox.Text, out var v5)) cfg.Workers = v5;
         cfg.AnalyzeDeps = AnalyzeDepsBox.IsChecked == true;
@@ -99,5 +123,48 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         cfg.QuarantineDir = QuarantineDirBox.Text.Trim();
         AppSettings.Save();
         StatusText.Text = Localizer.T("Settings.Saved");
+    }
+
+    private async void BtnBrowseGameRoot_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFolderAsync(GameRootBox);
+    private async void BtnBrowseExe_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFileAsync(ExePathBox, ".exe");
+    private async void BtnBrowseRepak_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFileAsync(RepakBox, ".exe");
+    private async void BtnBrowseDotnet_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFileAsync(DotnetBox, ".exe");
+    private async void BtnBrowseUAssetCli_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFileAsync(UAssetCliBox, ".dll");
+    private async void BtnBrowseReportDir_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFolderAsync(ReportDirBox);
+    private async void BtnBrowseBackupDir_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFolderAsync(BackupDirBox);
+    private async void BtnBrowseQuarantineDir_Click(object sender, RoutedEventArgs e) =>
+        await BrowseFolderAsync(QuarantineDirBox);
+
+    private async Task BrowseFolderAsync(TextBox box)
+    {
+        if (_window is null)
+        {
+            return;
+        }
+        var path = await WindowsPicker.PickFolderAsync(_window);
+        if (!string.IsNullOrEmpty(path))
+        {
+            box.Text = path;
+        }
+    }
+
+    private async Task BrowseFileAsync(TextBox box, params string[] extensions)
+    {
+        if (_window is null)
+        {
+            return;
+        }
+        var path = await WindowsPicker.PickSingleFileAsync(_window, extensions);
+        if (!string.IsNullOrEmpty(path))
+        {
+            box.Text = path;
+        }
     }
 }

@@ -7,6 +7,8 @@ namespace RoNCT.App.Pages;
 
 public sealed partial class QuarantinePage : Page, ILocalizablePage
 {
+    private bool _dialogOpen;
+
     public QuarantinePage()
     {
         InitializeComponent();
@@ -52,12 +54,19 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
         }
     }
 
-    private void BtnDeleteSelected_Click(object sender, RoutedEventArgs e)
+    private async void BtnDeleteSelected_Click(object sender, RoutedEventArgs e)
     {
         var names = QuarantineList.SelectedItems.Cast<string>().ToList();
         if (names.Count == 0)
         {
             StatusText.Text = Localizer.T("Quarantine.NoneSelected");
+            return;
+        }
+
+        if (!await ConfirmPermanentDeleteAsync(
+                Localizer.T("Quarantine.DeleteSelectedTitle"),
+                string.Format(Localizer.T("Quarantine.DeleteSelectedConfirm"), names.Count)))
+        {
             return;
         }
 
@@ -83,10 +92,24 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
         RefreshList();
     }
 
-    private void BtnEmpty_Click(object sender, RoutedEventArgs e)
+    private async void BtnEmpty_Click(object sender, RoutedEventArgs e)
     {
+        var items = QuarantineList.Items.Cast<string>().ToList();
+        if (items.Count == 0)
+        {
+            StatusText.Text = string.Format(Localizer.T("Quarantine.Deleted"), 0);
+            return;
+        }
+
+        if (!await ConfirmPermanentDeleteAsync(
+                Localizer.T("Quarantine.EmptyTitle"),
+                string.Format(Localizer.T("Quarantine.EmptyConfirm"), items.Count)))
+        {
+            return;
+        }
+
         var count = 0;
-        foreach (var name in QuarantineList.Items.Cast<string>().ToList())
+        foreach (var name in items)
         {
             try
             {
@@ -105,6 +128,39 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
         AppLog.Log($"USER_ACTION: empty quarantine ({count} deleted)");
         StatusText.Text = string.Format(Localizer.T("Quarantine.Deleted"), count);
         RefreshList();
+    }
+
+    /// <summary>
+    /// Quarantine files are the only remaining copies of rejected mods, so
+    /// deleting them must always be confirmed by the user.
+    /// </summary>
+    private async Task<bool> ConfirmPermanentDeleteAsync(
+        string title,
+        string message)
+    {
+        if (_dialogOpen)
+        {
+            return false;
+        }
+
+        _dialogOpen = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                PrimaryButtonText = Localizer.T("Quarantine.DeleteNow"),
+                CloseButtonText = Localizer.T("Dialog.Cancel"),
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = XamlRoot,
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        }
+        finally
+        {
+            _dialogOpen = false;
+        }
     }
 
     private void RefreshList()

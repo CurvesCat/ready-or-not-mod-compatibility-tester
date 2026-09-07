@@ -13,11 +13,20 @@
             <TextBlock x:Name="PageBodyText" Opacity="0.8" />
 
             <TextBlock x:Name="KeyLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <PasswordBox x:Name="ApiKeyBox" MinWidth="320" />
-                <Button x:Name="BtnSaveKey" Click="BtnSaveKey_Click" />
-                <Button x:Name="BtnTutorial" Click="BtnTutorial_Click" />
-            </StackPanel>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <PasswordBox
+                    x:Name="ApiKeyBox"
+                    Grid.Column="0"
+                    MinWidth="240"
+                    MaxLength="256" />
+                <Button x:Name="BtnSaveKey" Grid.Column="1" Click="BtnSaveKey_Click" />
+                <Button x:Name="BtnTutorial" Grid.Column="2" Click="BtnTutorial_Click" />
+            </Grid>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="BtnIdentify" Click="BtnIdentify_Click" />

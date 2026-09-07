@@ -16,6 +16,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <PasswordBox x:Name="ApiKeyBox" MinWidth="320" />
                 <Button x:Name="BtnSaveKey" Click="BtnSaveKey_Click" />
+                <Button x:Name="BtnTutorial" Click="BtnTutorial_Click" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="8">

@@ -20,7 +20,12 @@
             </StackPanel>
 
             <TextBlock x:Name="BackupListHeader" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <ListView x:Name="BackupList" MaxHeight="260" SelectionMode="None" />
+            <ListView
+                x:Name="BackupList"
+                Height="280"
+                SelectionMode="None"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.VerticalScrollMode="Enabled" />
             <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />
         </StackPanel>
     </ScrollViewer>

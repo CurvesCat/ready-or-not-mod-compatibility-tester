@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="24,16,24,24" Spacing="12">
             <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
             <TextBlock x:Name="PageBodyText" Opacity="0.8" />
@@ -16,18 +16,27 @@
             <TextBox x:Name="GameRootBox" Header="GameRoot" />
             <TextBox x:Name="ExePathBox" Header="ExePath" />
             <TextBox x:Name="ExtraArgsBox" Header="ExtraArgs" />
-
-            <TextBlock x:Name="ToolsSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <TextBox x:Name="RepakBox" Header="repak.exe" />
-            <TextBox x:Name="DotnetBox" Header="dotnet.exe" />
-            <TextBox x:Name="UAssetCliBox" Header="UAssetCLI.dll" />
+            <CheckBox x:Name="CloseRunningBox" Content="CloseRunning" />
+            <CheckBox x:Name="AutoCalibrateBox" Content="AutoCalibrate" />
 
             <TextBlock x:Name="TimingSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
             <TextBox x:Name="StableBox" Header="StableSeconds" />
             <TextBox x:Name="StartupBox" Header="StartupTimeoutSeconds" />
             <TextBox x:Name="MenuHoldBox" Header="MenuHoldSeconds" />
 
-            <TextBlock x:Name="StorageSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+            <TextBlock x:Name="ToolsSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+            <TextBox x:Name="RepakBox" Header="repak.exe" />
+            <TextBox x:Name="DotnetBox" Header="dotnet.exe" />
+            <TextBox x:Name="UAssetCliBox" Header="UAssetCLI.dll" />
+            <TextBox x:Name="EngineBox" Header="Engine" />
+            <TextBox x:Name="AssetLimitBox" Header="AssetLimit" />
+            <TextBox x:Name="WorkersBox" Header="Workers" />
+            <CheckBox x:Name="AnalyzeDepsBox" Content="AnalyzeDeps" />
+
+            <TextBlock x:Name="BackupSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+            <CheckBox x:Name="BackupEnabledBox" Content="BackupEnabled" />
+            <TextBox x:Name="BackupMaxFileBox" Header="BackupMaxFileMb" />
+            <TextBox x:Name="BackupMaxTotalBox" Header="BackupMaxTotalMb" />
             <TextBox x:Name="ReportDirBox" Header="ReportDir" />
             <TextBox x:Name="BackupDirBox" Header="BackupDir" />
             <TextBox x:Name="QuarantineDirBox" Header="QuarantineDir" />

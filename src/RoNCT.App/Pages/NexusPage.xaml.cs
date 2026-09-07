@@ -22,8 +22,21 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         PageBodyText.Text = Localizer.T("Page.Nexus.Body");
         KeyLabel.Text = Localizer.T("Nexus.ApiKey");
         BtnSaveKey.Content = Localizer.T("Nexus.SaveKey");
+        BtnTutorial.Content = Localizer.T("Nexus.Tutorial");
         BtnIdentify.Content = Localizer.T("Nexus.Identify");
         BtnDeps.Content = Localizer.T("Nexus.Deps");
+    }
+
+    private async void BtnTutorial_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = Localizer.T("Nexus.TutorialTitle"),
+            Content = Localizer.T("Nexus.TutorialSteps"),
+            CloseButtonText = Localizer.T("Nexus.TutorialClose"),
+            XamlRoot = XamlRoot,
+        };
+        await dialog.ShowAsync();
     }
 
     private void BtnSaveKey_Click(object sender, RoutedEventArgs e)

@@ -19,7 +19,12 @@
                 <Button x:Name="BtnEmpty" Click="BtnEmpty_Click" />
             </StackPanel>
 
-            <ListView x:Name="QuarantineList" MaxHeight="320" SelectionMode="Multiple" />
+            <ListView
+                x:Name="QuarantineList"
+                Height="280"
+                SelectionMode="Multiple"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.VerticalScrollMode="Enabled" />
             <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />
         </StackPanel>
     </ScrollViewer>

@@ -22,12 +22,27 @@ public sealed class PakSourceTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "b.pak"), string.Empty);
         File.WriteAllText(Path.Combine(_dir, "a.pak"), string.Empty);
         File.WriteAllText(Path.Combine(_dir, "notes.txt"), string.Empty);
+        File.WriteAllText(Path.Combine(_dir, "pakchunk0-Windows.pak"), string.Empty);
 
         var items = PakSource.FromFolder(_dir);
 
         Assert.Equal(2, items.Count);
         Assert.Equal("a.pak", items[0].FileName);
         Assert.Equal("b.pak", items[1].FileName);
+    }
+
+    [Fact]
+    public void FromFolder_RejectsBaseGamePaks_AndScansSubfolders()
+    {
+        File.WriteAllText(Path.Combine(_dir, "pakchunk0-Windows.pak"), string.Empty);
+        var sub = Path.Combine(_dir, "Mods");
+        Directory.CreateDirectory(sub);
+        File.WriteAllText(Path.Combine(sub, "pakchunk99-Mods_MyMod_P.pak"), string.Empty);
+
+        var items = PakSource.FromFolder(_dir);
+
+        var mod = Assert.Single(items);
+        Assert.Equal("pakchunk99-Mods_MyMod_P.pak", mod.FileName);
     }
 
     [Fact]

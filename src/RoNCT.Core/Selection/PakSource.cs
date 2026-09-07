@@ -13,10 +13,47 @@ public static class PakSource
             return Array.Empty<ModItem>();
         }
 
-        return Directory
-            .EnumerateFiles(folderPath, "*.pak", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+        var root = Path.GetFullPath(folderPath);
+        var pending = new Stack<string>();
+        pending.Push(root);
+        var files = new List<string>();
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            try
+            {
+                foreach (var sub in Directory.EnumerateDirectories(current))
+                {
+                    var attributes = File.GetAttributes(sub);
+                    if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        // Never follow junctions/symlinks outside the folder.
+                        continue;
+                    }
+                    var fullSub = Path.GetFullPath(sub);
+                    if (fullSub.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                    {
+                        pending.Push(fullSub);
+                    }
+                }
+                files.AddRange(
+                    Directory.EnumerateFiles(current, "*.pak"));
+            }
+            catch (IOException)
+            {
+                // Skip a directory that cannot be read.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Skip access-denied directories.
+            }
+        }
+
+        return files
+            .Where(path => IsModPak(Path.GetFileName(path)))
             .Select(ToItem)
+            .OrderBy(item => item.FileName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -26,6 +63,7 @@ public static class PakSource
             .Where(File.Exists)
             .Where(path => string.Equals(
                 Path.GetExtension(path), ".pak", StringComparison.OrdinalIgnoreCase))
+            .Where(path => IsModPak(Path.GetFileName(path)))
             .Select(ToItem)
             .ToArray();
     }

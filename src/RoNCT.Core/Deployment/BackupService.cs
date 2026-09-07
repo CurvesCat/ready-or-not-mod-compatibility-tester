@@ -64,12 +64,18 @@ public static class BackupService
 
         if (backupEnabled)
         {
-            foreach (var old in Directory.EnumerateFiles(backupRoot))
+            foreach (var old in Directory.EnumerateFileSystemEntries(backupRoot))
             {
-                if (PakSource.IsModPak(Path.GetFileName(old)))
+                try
                 {
-                    try { File.Delete(old); }
-                    catch { /* best effort */ }
+                    if (File.Exists(old))
+                    {
+                        File.Delete(old);
+                    }
+                }
+                catch
+                {
+                    // best effort
                 }
             }
         }
@@ -85,41 +91,46 @@ public static class BackupService
         if (Directory.Exists(modDir))
         {
             long total = 0;
-            foreach (var path in Directory.EnumerateFileSystemEntries(modDir))
+            foreach (var path in Directory.EnumerateFileSystemEntries(modDir).ToArray())
             {
-                var name = Path.GetFileName(path);
-                if (Directory.Exists(path))
+                try
                 {
-                    manifest.Files[name + "/"] = new ModDirEntry { IsDir = true };
-                    continue;
-                }
-                if (!SafeBasename(name))
-                {
-                    continue;
-                }
+                    var name = Path.GetFileName(path);
+                    if (Directory.Exists(path))
+                    {
+                        manifest.Files[name + "/"] = new ModDirEntry { IsDir = true };
+                        continue;
+                    }
+                    if (!SafeBasename(name))
+                    {
+                        continue;
+                    }
 
-                var info = new FileInfo(path);
-                var entry = new ModDirEntry
-                {
-                    Size = info.Length,
-                    Mtime = (long)(info.LastWriteTimeUtc - DateTime.UnixEpoch).TotalSeconds,
-                };
-                manifest.Files[name] = entry;
+                    var info = new FileInfo(path);
+                    var entry = new ModDirEntry
+                    {
+                        Size = info.Length,
+                        Mtime = (long)(info.LastWriteTimeUtc - DateTime.UnixEpoch).TotalSeconds,
+                    };
+                    manifest.Files[name] = entry;
 
-                if (backupEnabled && PakSource.IsModPak(name) &&
-                    info.Length <= maxFileBytes &&
-                    total + info.Length <= maxTotalBytes)
-                {
-                    try
+                    if (backupEnabled && PakSource.IsModPak(name) &&
+                        info.Length <= maxFileBytes &&
+                        total + info.Length <= maxTotalBytes)
                     {
                         File.Copy(path, Path.Combine(backupRoot, name), overwrite: true);
-                        entry.Sha256 = Sha256(File.ReadAllBytes(path));
+                        using var stream = File.OpenRead(path);
+                        entry.Sha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
                         total += info.Length;
                     }
-                    catch (IOException)
-                    {
-                        // leave entry without sha256
-                    }
+                }
+                catch (IOException)
+                {
+                    // skip a file that cannot be read; continue the rest
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // skip access-denied files
                 }
             }
         }

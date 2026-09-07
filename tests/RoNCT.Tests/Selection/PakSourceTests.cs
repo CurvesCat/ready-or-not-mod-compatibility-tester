@@ -50,6 +50,8 @@ public sealed class PakSourceTests : IDisposable
     {
         Assert.False(PakSource.IsModPak("pakchunk0-Windows.pak"));
         Assert.False(PakSource.IsModPak("pakchunk24-Windows.pak"));
+        Assert.False(PakSource.IsModPak("pakchunk0-Windows.sig"));
+        Assert.False(PakSource.IsModPak("pakchunk24-Windows.ucas"));
         Assert.True(PakSource.IsModPak("pakchunk99-Mods_BGroupV2_Main_P.pak"));
         Assert.True(PakSource.IsModPak("pakchunk9999-Mods_wound_P.pak"));
     }

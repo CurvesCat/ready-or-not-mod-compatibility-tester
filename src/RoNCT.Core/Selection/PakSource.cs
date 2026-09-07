@@ -61,10 +61,11 @@ public static class PakSource
 
     public static bool IsModPak(string fileName)
     {
-        return !System.Text.RegularExpressions.Regex.IsMatch(
-            fileName,
-            @"^pakchunk[0-9]+-Windows\.pak$",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return fileName.EndsWith(".pak", StringComparison.OrdinalIgnoreCase) &&
+            !System.Text.RegularExpressions.Regex.IsMatch(
+                fileName,
+                @"^pakchunk[0-9]+-Windows(?:NoEditor)?(?:_.*)?\.pak$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     private static ModItem ToItem(string path)

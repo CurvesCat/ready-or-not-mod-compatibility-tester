@@ -101,18 +101,18 @@ public static class TestRunner
                 $"stable={cal.SuggestedStable:0}");
         }
 
-        // Build plan from static name conflicts (dependency edges + rules come later).
-        var conflicts = ConflictScanner.FindConflicts(mods);
+        // In-place testing: run all selected installed mods in one launch. True
+        // per-mod isolation would require moving the other installed mods out,
+        // which is a separate feature; a 38-launch marathon is not useful here.
         var scanned = mods.Select(mod => mod.FileName).ToList();
-        var conflictPairs = conflicts
-            .Select(c => (IReadOnlyList<string>)new[] { c.A.FileName, c.B.FileName })
-            .ToList();
-        var plan = DeploymentPlanner.Build(scanned, conflictPairs, Array.Empty<DependencyEdge>());
-
-        emit($"Planned {plan.Groups.Count} test group(s).");
+        var groups = new List<DeployGroup>
+        {
+            new("g1", scanned, "batch", new List<string>()),
+        };
+        emit($"Testing {mods.Count} selected mod(s) in one group (one game launch).");
         var outcomes = new List<GroupOutcome>();
         var groupIndex = 0;
-        foreach (var group in plan.Groups)
+        foreach (var group in groups)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -129,7 +129,7 @@ public static class TestRunner
                 .Select(mod => new DeploySource(mod.FilePath, mod.FileName))
                 .ToList();
 
-            emit($"Testing group {groupIndex}/{plan.Groups.Count} ({group.Reason})...");
+            emit($"Testing group {groupIndex}/{groups.Count} ({group.Reason})...");
             var session = new GameSession(
                 exePath,
                 gameModDir,

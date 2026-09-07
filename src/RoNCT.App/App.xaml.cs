@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using RoNCT.App.Services;
+using RoNCT.Core.Selection;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -40,10 +41,63 @@ public partial class App : Application
             Environment.Exit(0);
             return;
         }
+        if (cmdArgs.Contains("--selftest", StringComparer.OrdinalIgnoreCase))
+        {
+            RunSelfTest();
+            Environment.Exit(0);
+            return;
+        }
 
         Localizer.SetLanguage(AppSettings.Current.Language);
         _window = new MainWindow();
         _window.Activate();
+    }
+
+    private static void RunSelfTest()
+    {
+        var logDir = Path.Combine(AppSettings.DataDirectory, "logs");
+        Directory.CreateDirectory(logDir);
+        var outPath = Path.Combine(logDir, "selftest.txt");
+        var knownExe =
+            @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Binaries\Win64\ReadyOrNotSteam-Win64-Shipping.exe";
+        try
+        {
+            var exe = !string.IsNullOrEmpty(AppSettings.Current.ExePath)
+                ? AppSettings.Current.ExePath
+                : (File.Exists(knownExe) ? knownExe : string.Empty);
+            if (string.IsNullOrEmpty(exe))
+            {
+                throw new InvalidOperationException("Game exe not found.");
+            }
+
+            var mods = PakSource.FromFiles(AppSettings.Current.SelectedPakFiles);
+            if (mods.Count == 0)
+            {
+                var gamePaks =
+                    @"C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks";
+                mods = PakSource.FromGamePaksFolder(gamePaks).Take(3).ToArray();
+            }
+
+            AppSettings.Current.AutoCalibrate = false;
+            AppSettings.Current.StableSeconds = 25;
+            var result = Task.Run(() =>
+                TestRunner.RunAsync(
+                    AppSettings.Current, mods, AppLog.Log, default)).GetAwaiter().GetResult();
+
+            var lines = string.Join(
+                "\n",
+                result.Outcomes.Select(outcome =>
+                    $"{outcome.Label}: {outcome.Result.Verdict} | {outcome.Result.Reason}"));
+            File.WriteAllText(
+                outPath,
+                lines + "\nCSV=" + result.CsvReport + "\nJSON=" + result.JsonReport);
+            AppLog.Log("selftest done");
+        }
+        catch (Exception exc)
+        {
+            File.WriteAllText(outPath, "ERROR: " + exc);
+            AppLog.Log("selftest error: " + exc);
+        }
     }
 
     private static void RunSelfCalibration()

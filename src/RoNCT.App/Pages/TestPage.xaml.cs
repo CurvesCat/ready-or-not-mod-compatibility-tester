@@ -57,7 +57,8 @@ public sealed partial class TestPage : Page, ILocalizablePage
             return;
         }
 
-        var folder = await WindowsPicker.PickFolderAsync(_window);
+        var folder = await WindowsPicker.PickFolderAsync(
+            _window, ResolvePickerStartDirectory());
         if (string.IsNullOrEmpty(folder))
         {
             return;
@@ -76,7 +77,8 @@ public sealed partial class TestPage : Page, ILocalizablePage
             return;
         }
 
-        var files = await WindowsPicker.PickPakFilesAsync(_window);
+        var files = await WindowsPicker.PickPakFilesAsync(
+            _window, ResolvePickerStartDirectory());
         if (files.Count == 0)
         {
             return;
@@ -248,6 +250,19 @@ public sealed partial class TestPage : Page, ILocalizablePage
             ? Localizer.T("Source.None")
             : string.Format(Localizer.T("Source.Count"), ModRows.Count);
     }
+
+    /// <summary>
+    /// Opens the picker where the user is already working: the configured mod
+    /// folder first, then the folder of an already selected .pak, then the
+    /// detected Ready or Not mods directory. Falls back to the shell default
+    /// only when none of those locations exist.
+    /// </summary>
+    private string? ResolvePickerStartDirectory() =>
+        WindowsPicker.ResolveStartDirectory(
+            AppSettings.Current.ModFolder,
+            AppSettings.Current.SelectedPakFiles,
+            AppSettings.Current.GameRoot,
+            KnownModFolders);
 
     private static string FormatSize(long bytes)
     {

@@ -174,7 +174,8 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         {
             return;
         }
-        var path = await WindowsPicker.PickFolderAsync(_window);
+        var path = await WindowsPicker.PickFolderAsync(
+            _window, StartDirectoryFor(box.Text));
         if (!string.IsNullOrEmpty(path))
         {
             box.Text = path;
@@ -187,10 +188,38 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         {
             return;
         }
-        var path = await WindowsPicker.PickSingleFileAsync(_window, extensions);
+        var path = await WindowsPicker.PickSingleFileAsync(
+            _window, extensions, StartDirectoryFor(box.Text));
         if (!string.IsNullOrEmpty(path))
         {
             box.Text = path;
         }
+    }
+
+    /// <summary>
+    /// Reuses the location already typed into the settings box. A directory is
+    /// used as-is; a file path opens at its parent so users do not have to
+    /// navigate back from Documents every time.
+    /// </summary>
+    private static string? StartDirectoryFor(string currentValue)
+    {
+        if (string.IsNullOrWhiteSpace(currentValue))
+        {
+            return null;
+        }
+
+        var trimmed = currentValue.Trim().Trim('"');
+        if (Directory.Exists(trimmed))
+        {
+            return trimmed;
+        }
+
+        if (File.Exists(trimmed))
+        {
+            var parent = Path.GetDirectoryName(trimmed);
+            return string.IsNullOrEmpty(parent) ? null : parent;
+        }
+
+        return null;
     }
 }

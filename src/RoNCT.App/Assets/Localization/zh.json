@@ -30,7 +30,7 @@
   "Analysis.ToolMissing": "未找到 repak 工具，请在“高级选项”里设置它的路径。",
   "Analysis.Summary": "共扫描了 {0} 个资产路径，其中 {1} 个被多个 Mod 共用（可能存在冲突）。",
   "Analysis.RunSummary": "分析了 {0} 个 Mod、{1} 个资产：发现 {2} 条跨 Mod 引用、{3} 条未解析引用，以及 {4} 处同路径冲突。",
-  "Test.DoneSummary": "本轮共测试 {0} 个分组：可用 {1}，不可用/错误 {2}，跳过 {3}。",
+  "Test.DoneSummary": "本轮共测试 {0} 个结果：可用 {1}，不可用/错误 {2}，跳过 {3}。",
   "Backup.Create": "创建备份",
   "Backup.Restore": "还原并回滚",
   "Backup.Open": "打开备份目录",

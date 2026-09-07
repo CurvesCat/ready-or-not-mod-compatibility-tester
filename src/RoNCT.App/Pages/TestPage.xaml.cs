@@ -153,11 +153,18 @@ public sealed partial class TestPage : Page, ILocalizablePage
                 AppSettings.Current, items, line => LogText.Text = line, default);
             Progress.Visibility = Visibility.Collapsed;
 
-            var ok = result.Outcomes.Count(o => o.Result.Verdict == TestVerdict.Ok);
-            var fail = result.Outcomes.Count(o => o.Result.Verdict is TestVerdict.Fail or TestVerdict.Error);
-            var skipped = result.Outcomes.Count(o => o.Result.Verdict == TestVerdict.Skipped);
+            var total = result.Outcomes.Sum(outcome => outcome.Mods.Count);
+            var ok = result.Outcomes
+                .Where(o => o.Result.Verdict == TestVerdict.Ok)
+                .Sum(o => o.Mods.Count);
+            var fail = result.Outcomes
+                .Where(o => o.Result.Verdict is TestVerdict.Fail or TestVerdict.Error)
+                .Sum(o => o.Mods.Count);
+            var skipped = result.Outcomes
+                .Where(o => o.Result.Verdict == TestVerdict.Skipped)
+                .Sum(o => o.Mods.Count);
             LogText.Text = string.Format(Localizer.T("Test.DoneSummary"),
-                result.Outcomes.Count, ok, fail, skipped)
+                total, ok, fail, skipped)
                 + "\n"
                 + (result.CsvReport ?? string.Empty);
         }

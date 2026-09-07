@@ -16,6 +16,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
     private readonly List<NexusModInfo> _identified = new();
     private MainWindow? _window;
     private bool _dialogOpen;
+    private CancellationTokenSource? _runCts;
     private IReadOnlyList<ModItem>? _dependencyItems;
     private RoNCT.Core.Plan.DeployPlan? _dependencyPlan;
     private Dictionary<string, NexusMappingRecord> _mapping = new(
@@ -43,6 +44,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         BtnIdentify.Content = Localizer.T("Nexus.Identify");
         BtnDeps.Content = Localizer.T("Nexus.Deps");
         BtnRunDepGroups.Content = Localizer.T("Nexus.RunDepGroups");
+        BtnCancelRun.Content = Localizer.T("Action.Stop");
         BtnOpenResult.Content = Localizer.T("Nexus.OpenPage");
         BtnConfirmResult.Content = Localizer.T("Nexus.Confirm");
         BtnCandidatesResult.Content = Localizer.T("Nexus.Candidates");
@@ -586,6 +588,10 @@ public sealed partial class NexusPage : Page, ILocalizablePage
 
     private async void BtnRunDepGroups_Click(object sender, RoutedEventArgs e)
     {
+        if (_runCts is not null)
+        {
+            return;
+        }
         if (_dependencyItems is null || _dependencyItems.Count == 0 ||
             _dependencyPlan is null)
         {
@@ -593,16 +599,28 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         }
 
         AppLog.UserAction("nexus_test_from_dependency_groups");
+        using var cts = new CancellationTokenSource();
+        _runCts = cts;
+        var queue = _window?.DispatcherQueue;
+        SetRunUi(true);
         StatusText.Text = string.Format(
             Localizer.T("Nexus.RunDepGroupsStarted"), _dependencyPlan.Groups.Count);
         try
         {
-            var result = await TestRunner.RunAsync(
-                AppSettings.Current,
-                _dependencyItems,
-                line => StatusText.Text = line,
-                default,
-                _dependencyPlan);
+            var token = cts.Token;
+            var result = await Task.Run(async () =>
+                await TestRunner.RunAsync(
+                    AppSettings.Current,
+                    _dependencyItems,
+                    line => queue?.TryEnqueue(() => StatusText.Text = line),
+                    token,
+                    _dependencyPlan));
+
+            if (token.IsCancellationRequested)
+            {
+                StatusText.Text = Localizer.T("Action.Cancelled");
+                return;
+            }
             var total = result.Outcomes.Sum(outcome => outcome.Mods.Count);
             var ok = result.Outcomes
                 .Where(o => o.Result.Verdict == TestVerdict.Ok)
@@ -618,11 +636,48 @@ public sealed partial class NexusPage : Page, ILocalizablePage
                 + "\n"
                 + (result.CsvReport ?? string.Empty);
         }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = Localizer.T("Action.Cancelled");
+        }
         catch (Exception exc)
         {
             AppLog.Error("NexusPage grouped test failed: " + exc.Message);
             StatusText.Text = exc.Message;
         }
+        finally
+        {
+            _runCts = null;
+            SetRunUi(false);
+        }
+    }
+
+    private void BtnCancelRun_Click(object sender, RoutedEventArgs e)
+    {
+        if (_runCts is null)
+        {
+            return;
+        }
+
+        AppLog.UserAction("cancel_nexus_grouped_test");
+        _runCts.Cancel();
+        BtnCancelRun.IsEnabled = false;
+        StatusText.Text = Localizer.T("Action.Cancelling");
+    }
+
+    private void SetRunUi(bool running)
+    {
+        BtnIdentify.IsEnabled = !running;
+        BtnDeps.IsEnabled = !running;
+        BtnRunDepGroups.IsEnabled = !running &&
+            _dependencyPlan is { Groups.Count: > 0 };
+        BtnCancelRun.Visibility = running
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        BtnCancelRun.IsEnabled = true;
+        RunProgress.Visibility = running
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static string DependencyStatusLabel(string status) =>

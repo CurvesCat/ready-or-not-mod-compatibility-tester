@@ -127,6 +127,13 @@ public static class TestRunner
                 $"Calibration done: window={cal.WindowSeconds:0.0}s, " +
                 $"menu={cal.MenuSeconds:0.0}s -> stable {cal.SuggestedStable:0}s");
         }
+        if (cancellationToken.IsCancellationRequested)
+        {
+            emit("Test cancelled by user.");
+            AppLog.Log("TestRunner: cancelled after calibration");
+            return new TestRunResult(
+                Array.Empty<GroupOutcome>(), null, null);
+        }
 
         var byName = new Dictionary<string, List<ModItem>>(StringComparer.OrdinalIgnoreCase);
         foreach (var mod in mods)
@@ -151,6 +158,13 @@ public static class TestRunner
         foreach (var warning in plan.Warnings)
         {
             emit("Warning: " + warning);
+        }
+        if (cancellationToken.IsCancellationRequested)
+        {
+            emit("Test cancelled by user.");
+            AppLog.Log("TestRunner: cancelled after planning");
+            return new TestRunResult(
+                Array.Empty<GroupOutcome>(), null, null, plan.Groups);
         }
         AppLog.Log(
             $"TestRunner: plan groups={plan.Groups.Count} " +

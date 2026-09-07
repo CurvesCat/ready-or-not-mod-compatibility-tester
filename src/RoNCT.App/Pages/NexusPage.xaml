@@ -32,7 +32,15 @@
                 <Button x:Name="BtnIdentify" Click="BtnIdentify_Click" />
                 <Button x:Name="BtnDeps" Click="BtnDeps_Click" />
                 <Button x:Name="BtnRunDepGroups" Click="BtnRunDepGroups_Click" IsEnabled="False" />
+                <Button
+                    x:Name="BtnCancelRun"
+                    Click="BtnCancelRun_Click"
+                    Visibility="Collapsed" />
             </StackPanel>
+            <ProgressBar
+                x:Name="RunProgress"
+                Visibility="Collapsed"
+                IsIndeterminate="True" />
 
             <ListView
                 x:Name="ResultList"

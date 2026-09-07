@@ -24,6 +24,8 @@ public sealed partial class TestPage : Page, ILocalizablePage
     private MainWindow? _window;
     private IReadOnlyList<ModItem>? _analysisItems;
     private DeployPlan? _analysisPlan;
+    private CancellationTokenSource? _runCts;
+    private bool _runActive;
 
     public TestPage()
     {
@@ -53,6 +55,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         ActionSectionText.Text = Localizer.T("Action.Title");
         BtnTest.Content = Localizer.T("Action.Run");
         BtnAnalyze.Content = Localizer.T("Action.Analyze");
+        BtnCancel.Content = Localizer.T("Action.Stop");
         AnalysisSectionText.Text = Localizer.T("Analysis.Section");
         BtnRunGroups.Content = Localizer.T("Analysis.RunGroups");
         BtnHideAnalysis.Content = Localizer.T("Analysis.Hide");
@@ -173,6 +176,10 @@ public sealed partial class TestPage : Page, ILocalizablePage
 
     private async void BtnTest_Click(object sender, RoutedEventArgs e)
     {
+        if (_runActive)
+        {
+            return;
+        }
         var items = SelectionItems();
         if (items.Count == 0)
         {
@@ -187,19 +194,35 @@ public sealed partial class TestPage : Page, ILocalizablePage
         IReadOnlyList<ModItem> items,
         DeployPlan? prebuiltPlan)
     {
+        if (_runActive)
+        {
+            return;
+        }
+
         AppLog.UserAction(prebuiltPlan is null
             ? "v2_test_qt"
             : "v2_test_qt_from_analysis");
-        Progress.Visibility = Visibility.Visible;
+        _runActive = true;
+        using var cts = new CancellationTokenSource();
+        _runCts = cts;
+        var queue = _window?.DispatcherQueue;
+        SetRunningUi(true);
         try
         {
-            var result = await TestRunner.RunAsync(
-                AppSettings.Current,
-                items,
-                line => LogText.Text = line,
-                default,
-                prebuiltPlan);
-            Progress.Visibility = Visibility.Collapsed;
+            var token = cts.Token;
+            var result = await Task.Run(async () =>
+                await TestRunner.RunAsync(
+                    AppSettings.Current,
+                    items,
+                    line => queue?.TryEnqueue(() => LogText.Text = line),
+                    token,
+                    prebuiltPlan));
+
+            if (token.IsCancellationRequested)
+            {
+                LogText.Text = Localizer.T("Action.Cancelled");
+                return;
+            }
 
             var total = result.Outcomes.Sum(outcome => outcome.Mods.Count);
             var ok = result.Outcomes
@@ -216,10 +239,19 @@ public sealed partial class TestPage : Page, ILocalizablePage
                 + "\n"
                 + (result.CsvReport ?? string.Empty);
         }
+        catch (OperationCanceledException)
+        {
+            LogText.Text = Localizer.T("Action.Cancelled");
+        }
         catch (Exception exc)
         {
-            Progress.Visibility = Visibility.Collapsed;
             LogText.Text = exc.Message;
+        }
+        finally
+        {
+            _runCts = null;
+            _runActive = false;
+            SetRunningUi(false);
         }
     }
 
@@ -346,12 +378,43 @@ public sealed partial class TestPage : Page, ILocalizablePage
 
     private async void BtnRunGroups_Click(object sender, RoutedEventArgs e)
     {
+        if (_runActive)
+        {
+            return;
+        }
         if (_analysisItems is null || _analysisItems.Count == 0 || _analysisPlan is null)
         {
             return;
         }
 
         await RunTestAsync(_analysisItems, _analysisPlan);
+    }
+
+    private void BtnCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (_runCts is null)
+        {
+            return;
+        }
+
+        AppLog.UserAction("cancel_test");
+        _runCts.Cancel();
+        BtnCancel.IsEnabled = false;
+        LogText.Text = Localizer.T("Action.Cancelling");
+    }
+
+    private void SetRunningUi(bool running)
+    {
+        BtnTest.IsEnabled = !running;
+        BtnAnalyze.IsEnabled = !running;
+        BtnRunGroups.IsEnabled = !running && _analysisPlan is not null;
+        BtnCancel.Visibility = running
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        BtnCancel.IsEnabled = true;
+        Progress.Visibility = running
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void BtnHideAnalysis_Click(object sender, RoutedEventArgs e)

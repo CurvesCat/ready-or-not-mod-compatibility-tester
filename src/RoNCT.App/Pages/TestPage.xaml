@@ -56,6 +56,10 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="BtnTest" Click="BtnTest_Click" Style="{StaticResource AccentButtonStyle}" />
                 <Button x:Name="BtnAnalyze" Click="BtnAnalyze_Click" />
+                <Button
+                    x:Name="BtnCancel"
+                    Click="BtnCancel_Click"
+                    Visibility="Collapsed" />
             </StackPanel>
             <ProgressBar x:Name="Progress" Visibility="Collapsed" IsIndeterminate="True" />
             <TextBlock x:Name="LogText" Opacity="0.8" TextWrapping="Wrap" />

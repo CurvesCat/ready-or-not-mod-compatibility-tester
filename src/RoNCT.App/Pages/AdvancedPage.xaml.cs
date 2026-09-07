@@ -22,6 +22,27 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         ToolsSectionText.Text = Localizer.T("Settings.Tools");
         BackupSectionText.Text = Localizer.T("Settings.Backup");
         BtnSave.Content = Localizer.T("Settings.Save");
+        GameRootBox.Header = Localizer.T("Settings.GameRoot");
+        ExePathBox.Header = Localizer.T("Settings.ExePath");
+        ExtraArgsBox.Header = Localizer.T("Settings.ExtraArgs");
+        CloseRunningBox.Content = Localizer.T("Settings.CloseRunning");
+        AutoCalibrateBox.Content = Localizer.T("Settings.AutoCalibrate");
+        StableBox.Header = Localizer.T("Settings.StableSeconds");
+        StartupBox.Header = Localizer.T("Settings.StartupTimeout");
+        MenuHoldBox.Header = Localizer.T("Settings.MenuHoldSeconds");
+        RepakBox.Header = Localizer.T("Settings.Repak");
+        DotnetBox.Header = Localizer.T("Settings.Dotnet");
+        UAssetCliBox.Header = Localizer.T("Settings.UAssetCli");
+        EngineBox.Header = Localizer.T("Settings.Engine");
+        AssetLimitBox.Header = Localizer.T("Settings.AssetLimit");
+        WorkersBox.Header = Localizer.T("Settings.Workers");
+        AnalyzeDepsBox.Content = Localizer.T("Settings.AnalyzeDeps");
+        BackupEnabledBox.Content = Localizer.T("Settings.BackupEnabled");
+        BackupMaxFileBox.Header = Localizer.T("Settings.BackupMaxFile");
+        BackupMaxTotalBox.Header = Localizer.T("Settings.BackupMaxTotal");
+        ReportDirBox.Header = Localizer.T("Settings.ReportDir");
+        BackupDirBox.Header = Localizer.T("Settings.BackupDir");
+        QuarantineDirBox.Header = Localizer.T("Settings.QuarantineDir");
     }
 
     private void LoadSettings()

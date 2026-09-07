@@ -59,3 +59,23 @@ restore/verification, reports).
 - Headless dry-run against the real 38-pak folder shows expected groups and
   no file mutations.
 - Manual E2E checklist written for the user's confirmation run.
+
+## Status (2026-09-07)
+
+Completed on `main`:
+
+- Task 1: `ModFolderOperator` now enumerates installed mods, never touches
+  base-game paks, preflights collisions, and rolls back partial parking.
+  Commits: 35fc2e3.
+- Task 2: `DependencyScanner.ScanGraphAsync` exposes real `DependencyEdge`s
+  and overwrite conflict pairs while `RunAsync` keeps the Analyze summary.
+  Commit: 7e9e23c.
+- Task 3: One-click test now builds groups from the dependency graph and runs
+  each group with other installed mods parked; failing multi-mod groups are
+  retested per mod; backup/disposition/reporting wired. Commit: 0ab6429.
+- Task 4: 38/38 tests green in Debug and Release; Release build clean; no
+  vulnerable packages in any project; headless 38-pak dry run planned 21
+  groups in 12.21 s with zero file mutations. Checklist:
+  docs/benchmarks/m1-isolation-dryrun.md.
+
+Remaining (user confirmation only): manual E2E game-launch checklist.

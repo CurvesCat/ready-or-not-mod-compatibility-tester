@@ -98,6 +98,7 @@
   "Nexus.CandidatesTitle": "Choose a Nexus mod for {0}",
   "Nexus.CandidatesHint": "These candidates were found from the file name; choose the best match:",
   "Nexus.ConfirmCandidate": "Confirm this candidate",
+  "Nexus.CandidatesOpen": "Open selected candidate page",
   "Nexus.Dep": "Requirement",
   "Nexus.IdentifyFirst": "Identify mods first, then check dependencies.",
   "Nexus.CheckingDeps": "Checking dependencies...",

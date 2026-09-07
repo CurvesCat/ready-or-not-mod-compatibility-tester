@@ -374,6 +374,31 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             list.SelectedIndex = 0;
         }
 
+        var openButton = new Button
+        {
+            Content = Localizer.T("Nexus.CandidatesOpen"),
+            IsEnabled = labels.Count > 0,
+        };
+        list.SelectionChanged += (_, _) =>
+            openButton.IsEnabled = list.SelectedIndex >= 0;
+
+        void OpenSelectedCandidate()
+        {
+            if (list.SelectedIndex < 0 ||
+                list.SelectedIndex >= row.Candidates.Count)
+            {
+                return;
+            }
+            var url = row.Candidates[list.SelectedIndex].ModUrl;
+            if (!string.IsNullOrEmpty(url))
+            {
+                OpenUrl(url);
+            }
+        }
+
+        openButton.Click += (_, _) => OpenSelectedCandidate();
+        list.DoubleTapped += (_, _) => OpenSelectedCandidate();
+
         var content = new StackPanel
         {
             MinWidth = 380,
@@ -387,6 +412,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
                     Opacity = 0.8,
                 },
                 list,
+                openButton,
             },
         };
 

@@ -98,6 +98,7 @@
   "Nexus.CandidatesTitle": "为 {0} 选择 N 网 Mod",
   "Nexus.CandidatesHint": "以下是根据文件名找到的候选，选择最匹配的一个：",
   "Nexus.ConfirmCandidate": "确认此候选",
+  "Nexus.CandidatesOpen": "打开所选候选页面",
   "Nexus.Dep": "前置",
   "Nexus.IdentifyFirst": "请先识别 Mod，再检查依赖。",
   "Nexus.CheckingDeps": "正在检查依赖…",

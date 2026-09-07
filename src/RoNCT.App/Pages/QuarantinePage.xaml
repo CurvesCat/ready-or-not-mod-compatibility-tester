@@ -13,6 +13,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <TextBlock x:Name="PageTitle" Grid.Row="0" Style="{StaticResource TitleTextBlockStyle}" />
         <TextBlock x:Name="QuarantinePathText" Grid.Row="1" Opacity="0.75" />
@@ -29,10 +30,8 @@
         </StackPanel>
         <TextBlock
             x:Name="StatusText"
-            Grid.Row="3"
-            Margin="0,12,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Bottom"
+            Grid.Row="4"
+            Margin="0,6,0,0"
             Opacity="0.8"
             TextWrapping="Wrap" />
     </Grid>

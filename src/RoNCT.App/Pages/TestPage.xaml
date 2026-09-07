@@ -59,6 +59,192 @@
             </StackPanel>
             <ProgressBar x:Name="Progress" Visibility="Collapsed" IsIndeterminate="True" />
             <TextBlock x:Name="LogText" Opacity="0.8" TextWrapping="Wrap" />
+
+            <StackPanel
+                x:Name="AnalysisPanel"
+                Visibility="Collapsed"
+                Spacing="10">
+                <TextBlock x:Name="AnalysisSectionText" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock x:Name="AnalysisSummaryText" Opacity="0.8" TextWrapping="Wrap" />
+
+                <Pivot x:Name="AnalysisPivot" Height="340">
+                    <PivotItem x:Name="EdgesPivotItem">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="2.2*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="EdgeColFromHeader" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="EdgeColToHeader" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="EdgeColAssetHeader" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="EdgeColConfidenceHeader" Grid.Column="3" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                            </Grid>
+                            <ListView
+                                x:Name="EdgesList"
+                                Grid.Row="1"
+                                MaxHeight="300"
+                                SelectionMode="None"
+                                ItemsSource="{x:Bind EdgeRows}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:EdgeRow">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="2.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Source}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Target}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind Asset}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="3" Text="{x:Bind Confidence}" Opacity="0.6" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </PivotItem>
+
+                    <PivotItem x:Name="UnresolvedPivotItem">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="1.6*" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="UnresolvedColModHeader" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="UnresolvedColAssetHeader" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="UnresolvedColRefHeader" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                            </Grid>
+                            <ListView
+                                x:Name="UnresolvedList"
+                                Grid.Row="1"
+                                MaxHeight="300"
+                                SelectionMode="None"
+                                ItemsSource="{x:Bind UnresolvedRows}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:UnresolvedRow">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="1.6*" />
+                                                <ColumnDefinition Width="2*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Mod}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Asset}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind Reference}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </PivotItem>
+
+                    <PivotItem x:Name="ErrorsPivotItem">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="1.6*" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ErrorColModHeader" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="ErrorColAssetHeader" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="ErrorColErrorHeader" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                            </Grid>
+                            <ListView
+                                x:Name="ErrorList"
+                                Grid.Row="1"
+                                MaxHeight="300"
+                                SelectionMode="None"
+                                ItemsSource="{x:Bind ErrorRows}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:ErrorRow">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="1.6*" />
+                                                <ColumnDefinition Width="2*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Mod}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Asset}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind Error}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </PivotItem>
+
+                    <PivotItem x:Name="GroupsPivotItem">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="1.8*" />
+                                    <ColumnDefinition Width="2.2*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="GroupColIdHeader" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="GroupColReasonHeader" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="GroupColFilesHeader" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                                <TextBlock x:Name="GroupColEvidenceHeader" Grid.Column="3" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                            </Grid>
+                            <ListView
+                                x:Name="GroupsList"
+                                Grid.Row="1"
+                                MaxHeight="300"
+                                SelectionMode="None"
+                                ItemsSource="{x:Bind GroupRows}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:GroupRow">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="1.8*" />
+                                                <ColumnDefinition Width="2.2*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind GroupId}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Reason}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind Mods}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="3" Text="{x:Bind Evidence}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </PivotItem>
+                </Pivot>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        x:Name="BtnRunGroups"
+                        Click="BtnRunGroups_Click"
+                        Style="{StaticResource AccentButtonStyle}" />
+                    <Button x:Name="BtnHideAnalysis" Click="BtnHideAnalysis_Click" />
+                </StackPanel>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

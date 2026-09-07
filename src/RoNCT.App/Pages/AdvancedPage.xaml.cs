@@ -94,9 +94,9 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         StartupBox.Text = cfg.StartupTimeoutSeconds.ToString();
         MenuHoldBox.Text = cfg.MenuHoldSeconds.ToString();
         RepakBox.Text = ResolveTool(cfg.RepakExe, "repak", "repak.exe");
-        DotnetBox.Text = ResolveTool(cfg.DotnetExe, "dotnet10", "dotnet.exe");
+        DotnetBox.Text = ResolveTool(cfg.DotnetExe, "dotnet", "dotnet.exe");
         UAssetCliBox.Text = ResolveTool(
-            cfg.UAssetCliDll, "UAssetCLI", "UAssetCLI", "UAssetCLI.dll");
+            cfg.UAssetCliDll, "uassetcli", "UAssetCLI.dll");
         EngineBox.Text = string.IsNullOrEmpty(cfg.Engine) ? "VER_UE5_4" : cfg.Engine;
         AssetLimitBox.Text = cfg.AssetLimit.ToString();
         WorkersBox.Text = cfg.Workers.ToString();
@@ -148,6 +148,7 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         cfg.BackupDir = BackupDirBox.Text.Trim();
         cfg.QuarantineDir = QuarantineDirBox.Text.Trim();
         AppSettings.Save();
+        AppLog.UserAction("settings_saved");
         StatusText.Text = Localizer.T("Settings.Saved");
     }
 

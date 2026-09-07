@@ -15,6 +15,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Closed += (_, _) => AppLog.Log("GUI closed");
 
         FooterPanel.Visibility = NavView.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
 
@@ -68,6 +69,7 @@ public sealed partial class MainWindow : Window
     {
         if (args.SelectedItem is NavigationViewItem { Tag: string tag })
         {
+            AppLog.UserAction("open_page_" + tag);
             ShowPage(tag);
         }
     }
@@ -80,6 +82,7 @@ public sealed partial class MainWindow : Window
             "nexus" => typeof(NexusPage),
             "backup" => typeof(BackupPage),
             "quarantine" => typeof(QuarantinePage),
+            "debug" => typeof(DebugPage),
             "advanced" => typeof(AdvancedPage),
             _ => typeof(TestPage),
         };
@@ -95,6 +98,10 @@ public sealed partial class MainWindow : Window
             else if (page is AdvancedPage advancedPage)
             {
                 advancedPage.AttachWindow(this);
+            }
+            else if (page is NexusPage nexusPage)
+            {
+                nexusPage.AttachWindow(this);
             }
         }
 
@@ -139,12 +146,14 @@ public sealed partial class MainWindow : Window
 
     private void LangEnButton_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.UserAction("language_english");
         SetLanguage(Localizer.English);
         ApplyLanguage();
     }
 
     private void LangZhButton_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.UserAction("language_chinese");
         SetLanguage(Localizer.Chinese);
         ApplyLanguage();
     }
@@ -162,6 +171,7 @@ public sealed partial class MainWindow : Window
         NavNexusItem.Content = Localizer.T("Nav.Nexus");
         NavBackupItem.Content = Localizer.T("Nav.Backup");
         NavQuarantineItem.Content = Localizer.T("Nav.Quarantine");
+        NavDebugItem.Content = Localizer.T("Nav.Debug");
         NavAdvancedItem.Content = Localizer.T("Nav.Advanced");
         ThemeLabel.Text = Localizer.T("Footer.Theme");
         LanguageLabel.Text = Localizer.T("Footer.Language");
@@ -173,6 +183,25 @@ public sealed partial class MainWindow : Window
             {
                 localizable.ApplyLanguage();
             }
+        }
+    }
+
+    /// <summary>
+    /// Keeps the RoNCT window above other windows (for example while the API-key
+    /// guide opens the browser) and releases it again afterwards.
+    /// </summary>
+    public void SetAlwaysOnTop(bool onTop)
+    {
+        try
+        {
+            if (AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsAlwaysOnTop = onTop;
+            }
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("MainWindow SetAlwaysOnTop failed: " + exc.Message);
         }
     }
 

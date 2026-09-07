@@ -26,6 +26,12 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        UnhandledException += (_, args) =>
+            AppLog.Error("UnhandledException: " + args.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            AppLog.Error("AppDomain unhandled: " + args.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+            AppLog.Error("Unobserved task exception: " + args.Exception);
     }
 
     /// <summary>
@@ -49,6 +55,7 @@ public partial class App : Application
         }
 
         Localizer.SetLanguage(AppSettings.Current.Language);
+        AppLog.Log("GUI starting");
         _window = new MainWindow();
         _window.Activate();
     }

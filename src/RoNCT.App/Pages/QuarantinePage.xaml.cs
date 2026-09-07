@@ -35,12 +35,33 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
     {
         var dir = QuarantineDirectory();
         Directory.CreateDirectory(dir);
-        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+        AppLog.Log("USER_ACTION: open quarantine folder");
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                UseShellExecute = true,
+                Arguments = $"\"{dir}\"",
+            });
+        }
+        catch (Exception exc)
+        {
+            AppLog.Log($"QuarantinePage: open failed: {exc.Message}");
+            StatusText.Text = exc.Message;
+        }
     }
 
     private void BtnDeleteSelected_Click(object sender, RoutedEventArgs e)
     {
         var names = QuarantineList.SelectedItems.Cast<string>().ToList();
+        if (names.Count == 0)
+        {
+            StatusText.Text = Localizer.T("Quarantine.NoneSelected");
+            return;
+        }
+
+        var deleted = 0;
         foreach (var name in names)
         {
             try
@@ -49,14 +70,16 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
                 if (File.Exists(path))
                 {
                     File.Delete(path);
+                    deleted++;
                 }
             }
-            catch (IOException)
+            catch (Exception exc)
             {
-                // keep listing
+                AppLog.Log($"QuarantinePage: delete {name} failed: {exc.Message}");
             }
         }
-        StatusText.Text = string.Format(Localizer.T("Quarantine.Deleted"), names.Count);
+        AppLog.Log($"USER_ACTION: delete selected quarantine items ({deleted}/{names.Count})");
+        StatusText.Text = string.Format(Localizer.T("Quarantine.Deleted"), deleted);
         RefreshList();
     }
 
@@ -74,11 +97,12 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
                     count++;
                 }
             }
-            catch (IOException)
+            catch (Exception exc)
             {
-                // keep going
+                AppLog.Log($"QuarantinePage: empty failed for {name}: {exc.Message}");
             }
         }
+        AppLog.Log($"USER_ACTION: empty quarantine ({count} deleted)");
         StatusText.Text = string.Format(Localizer.T("Quarantine.Deleted"), count);
         RefreshList();
     }

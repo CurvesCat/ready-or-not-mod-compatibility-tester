@@ -7,12 +7,19 @@ namespace RoNCT.App.Services;
 
 public sealed class DependencyScanResult
 {
-    public DependencyScanResult(int paks, int parsedAssets, int edges, int unresolved, int conflicts)
+    public DependencyScanResult(
+        int paks,
+        int parsedAssets,
+        int edges,
+        int unresolved,
+        int parseErrors,
+        int conflicts)
     {
         Paks = paks;
         ParsedAssets = parsedAssets;
         Edges = edges;
         Unresolved = unresolved;
+        ParseErrors = parseErrors;
         Conflicts = conflicts;
     }
 
@@ -20,6 +27,7 @@ public sealed class DependencyScanResult
     public int ParsedAssets { get; }
     public int Edges { get; }
     public int Unresolved { get; }
+    public int ParseErrors { get; }
     public int Conflicts { get; }
 }
 
@@ -30,6 +38,9 @@ public sealed class DependencyScanGraph
         int parsedAssets,
         IReadOnlyList<DependencyEdge> edges,
         int unresolved,
+        IReadOnlyList<DependencyEdgeDetail> edgeDetails,
+        IReadOnlyList<UnresolvedReference> unresolvedReferences,
+        IReadOnlyList<ParseErrorDetail> parseErrors,
         IReadOnlyList<IReadOnlyList<string>> conflictPairs,
         int conflictCount)
     {
@@ -37,6 +48,9 @@ public sealed class DependencyScanGraph
         ParsedAssets = parsedAssets;
         Edges = edges;
         Unresolved = unresolved;
+        EdgeDetails = edgeDetails;
+        UnresolvedReferences = unresolvedReferences;
+        ParseErrors = parseErrors;
         ConflictPairs = conflictPairs;
         ConflictCount = conflictCount;
     }
@@ -45,9 +59,29 @@ public sealed class DependencyScanGraph
     public int ParsedAssets { get; }
     public IReadOnlyList<DependencyEdge> Edges { get; }
     public int Unresolved { get; }
+    public IReadOnlyList<DependencyEdgeDetail> EdgeDetails { get; }
+    public IReadOnlyList<UnresolvedReference> UnresolvedReferences { get; }
+    public IReadOnlyList<ParseErrorDetail> ParseErrors { get; }
     public IReadOnlyList<IReadOnlyList<string>> ConflictPairs { get; }
     public int ConflictCount { get; }
 }
+
+public sealed record DependencyEdgeDetail(
+    string FromMod,
+    string ToMod,
+    string AssetPath,
+    string Confidence);
+
+public sealed record UnresolvedReference(
+    string Mod,
+    string Asset,
+    string Reference,
+    string Reason);
+
+public sealed record ParseErrorDetail(
+    string Mod,
+    string Asset,
+    string Error);
 
 public static class DependencyScanner
 {
@@ -79,6 +113,7 @@ public static class DependencyScanner
             graph.ParsedAssets,
             graph.Edges.Count,
             graph.Unresolved,
+            graph.ParseErrors.Count,
             graph.ConflictCount);
     }
 
@@ -121,7 +156,10 @@ public static class DependencyScanner
             .ToArray();
 
         var edges = new HashSet<(string From, string To)>();
+        var edgeDetails = new HashSet<(string From, string To, string Asset, string Confidence)>();
         var unresolved = 0;
+        var unresolvedReferences = new List<UnresolvedReference>();
+        var parseErrors = new List<ParseErrorDetail>();
         var parsedAssets = 0;
         var useInProcess = pakFileReader is not null && assetParser is not null;
 
@@ -161,8 +199,10 @@ public static class DependencyScanner
                     {
                         imports = assetParser!.Parse(uassetBytes, uexpBytes);
                     }
-                    catch
+                    catch (Exception exc)
                     {
+                        parseErrors.Add(new ParseErrorDetail(
+                            inventory.FileName, stem + ".uasset", exc.Message));
                         imports = null;
                     }
                     if (imports is null)
@@ -189,17 +229,24 @@ public static class DependencyScanner
 
                 foreach (var reference in references)
                 {
-                    var (mod, _) = ProviderMap.MatchReference(
+                    var (mod, confidence) = ProviderMap.MatchReference(
                         reference, providerMap, inventory.FileName);
                     if (mod is not null)
                     {
                         edges.Add(
                             (inventory.FileName.ToLowerInvariant(),
                              mod.ToLowerInvariant()));
+                        edgeDetails.Add(
+                            (inventory.FileName, mod, stem + ".uasset", confidence));
                     }
                     else if (reference.StartsWith("/Game/Mods/", StringComparison.Ordinal))
                     {
                         unresolved++;
+                        unresolvedReferences.Add(new UnresolvedReference(
+                            inventory.FileName,
+                            stem + ".uasset",
+                            reference,
+                            "not_provided_by_scanned_mods"));
                     }
                 }
             }
@@ -208,11 +255,18 @@ public static class DependencyScanner
         var dependencyEdges = edges
             .Select(edge => new DependencyEdge(edge.From, edge.To))
             .ToArray();
+        var detailedEdges = edgeDetails
+            .Select(edge => new DependencyEdgeDetail(
+                edge.From, edge.To, edge.Asset, edge.Confidence))
+            .ToArray();
         return new DependencyScanGraph(
             inventories.Count,
             parsedAssets,
             dependencyEdges,
             unresolved,
+            detailedEdges,
+            unresolvedReferences,
+            parseErrors,
             conflictPairs,
             conflicts.Count);
     }

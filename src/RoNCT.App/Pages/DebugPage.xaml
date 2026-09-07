@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="RoNCT.App.Pages.DebugPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer>
+        <StackPanel Padding="24,16,24,24" Spacing="14">
+            <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock x:Name="PageBodyText" Opacity="0.8" TextWrapping="Wrap" />
+
+            <TextBlock x:Name="LogPathText" Opacity="0.7" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="BtnRefresh" Click="BtnRefresh_Click" />
+                <Button x:Name="BtnCopyLog" Click="BtnCopyLog_Click" />
+                <Button x:Name="BtnCopyDiagnostics" Click="BtnCopyDiagnostics_Click" />
+                <Button x:Name="BtnOpenFolder" Click="BtnOpenFolder_Click" />
+            </StackPanel>
+
+            <TextBox
+                x:Name="LogTextBox"
+                Height="380"
+                AcceptsReturn="True"
+                FontFamily="Consolas"
+                IsReadOnly="True"
+                TextWrapping="NoWrap" />
+            <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

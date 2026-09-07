@@ -59,7 +59,8 @@ public static class TestRunner
         AppConfig config,
         IReadOnlyList<ModItem> mods,
         Action<string> emit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DeployPlan? prebuiltPlan = null)
     {
         var exePath = ResolveExePath(config);
         var gameRoot = ResolveGameRoot(config);
@@ -138,8 +139,12 @@ public static class TestRunner
             list.Add(mod);
         }
 
-        var plan = await BuildPlanAsync(
+        var plan = prebuiltPlan ?? await BuildPlanAsync(
             config, mods, emit, cancellationToken);
+        if (prebuiltPlan is not null)
+        {
+            emit("Reusing the group plan from the dependency analysis...");
+        }
         emit(
             $"Planned {plan.Groups.Count} test group(s) " +
             $"({plan.ConflictPairs.Count} conflict pair(s)).");

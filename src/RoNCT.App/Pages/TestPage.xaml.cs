@@ -22,6 +22,8 @@ public sealed partial class TestPage : Page, ILocalizablePage
     };
 
     private MainWindow? _window;
+    private IReadOnlyList<ModItem>? _analysisItems;
+    private DeployPlan? _analysisPlan;
 
     public TestPage()
     {
@@ -31,6 +33,10 @@ public sealed partial class TestPage : Page, ILocalizablePage
     }
 
     public ObservableCollection<ModRow> ModRows { get; } = new();
+    public ObservableCollection<EdgeRow> EdgeRows { get; } = new();
+    public ObservableCollection<UnresolvedRow> UnresolvedRows { get; } = new();
+    public ObservableCollection<ErrorRow> ErrorRows { get; } = new();
+    public ObservableCollection<GroupRow> GroupRows { get; } = new();
 
     public void AttachWindow(MainWindow window) =>
         _window = window;
@@ -47,6 +53,28 @@ public sealed partial class TestPage : Page, ILocalizablePage
         ActionSectionText.Text = Localizer.T("Action.Title");
         BtnTest.Content = Localizer.T("Action.Run");
         BtnAnalyze.Content = Localizer.T("Action.Analyze");
+        AnalysisSectionText.Text = Localizer.T("Analysis.Section");
+        BtnRunGroups.Content = Localizer.T("Analysis.RunGroups");
+        BtnHideAnalysis.Content = Localizer.T("Analysis.Hide");
+        EdgesPivotItem.Header = Localizer.T("Analysis.Edges");
+        UnresolvedPivotItem.Header = Localizer.T("Analysis.Unresolved");
+        ErrorsPivotItem.Header = Localizer.T("Analysis.Errors");
+        GroupsPivotItem.Header = Localizer.T("Analysis.Groups");
+        EdgeColFromHeader.Text = Localizer.T("Analysis.ColFrom");
+        EdgeColToHeader.Text = Localizer.T("Analysis.ColTo");
+        EdgeColAssetHeader.Text = Localizer.T("Analysis.ColAsset");
+        EdgeColConfidenceHeader.Text = Localizer.T("Analysis.ColConfidence");
+        UnresolvedColModHeader.Text = Localizer.T("Analysis.ColMod");
+        UnresolvedColAssetHeader.Text = Localizer.T("Analysis.ColAsset");
+        UnresolvedColRefHeader.Text = Localizer.T("Analysis.ColRef");
+        ErrorColModHeader.Text = Localizer.T("Analysis.ColMod");
+        ErrorColAssetHeader.Text = Localizer.T("Analysis.ColAsset");
+        ErrorColErrorHeader.Text = Localizer.T("Analysis.ColError");
+        GroupColIdHeader.Text = Localizer.T("Analysis.ColGroup");
+        GroupColReasonHeader.Text = Localizer.T("Analysis.ColReason");
+        GroupColFilesHeader.Text = Localizer.T("Analysis.ColFiles");
+        GroupColEvidenceHeader.Text = Localizer.T("Analysis.ColEvidence");
+        RefreshGroupRows();
         UpdateSelectionStatus();
     }
 
@@ -67,6 +95,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         AppSettings.Current.ModFolder = folder;
         AppSettings.Current.SelectedPakFiles.Clear();
         AppSettings.Save();
+        AppLog.UserAction("pick_mod_folder: " + folder);
         ReloadSelection();
     }
 
@@ -87,6 +116,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         AppSettings.Current.ModFolder = string.Empty;
         AppSettings.Current.SelectedPakFiles = files.ToList();
         AppSettings.Save();
+        AppLog.UserAction($"pick_mod_files: {files.Count}");
         ReloadSelection();
     }
 
@@ -113,6 +143,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         AppSettings.Current.ModFolder = string.Empty;
         AppSettings.Current.SelectedPakFiles = mods.Select(mod => mod.FilePath).ToList();
         AppSettings.Save();
+        AppLog.UserAction($"auto_detect_mods: {mods.Count}");
         ReloadSelection();
         LogText.Text = string.Format(Localizer.T("Source.DetectCount"), mods.Count);
     }
@@ -135,6 +166,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
         AppSettings.Current.ModFolder = string.Empty;
         AppSettings.Current.SelectedPakFiles.Clear();
         AppSettings.Save();
+        AppLog.UserAction("clear_mod_selection");
         ReloadSelection();
         LogText.Text = string.Empty;
     }
@@ -148,11 +180,25 @@ public sealed partial class TestPage : Page, ILocalizablePage
             return;
         }
 
+        await RunTestAsync(items, prebuiltPlan: null);
+    }
+
+    private async Task RunTestAsync(
+        IReadOnlyList<ModItem> items,
+        DeployPlan? prebuiltPlan)
+    {
+        AppLog.UserAction(prebuiltPlan is null
+            ? "v2_test_qt"
+            : "v2_test_qt_from_analysis");
         Progress.Visibility = Visibility.Visible;
         try
         {
             var result = await TestRunner.RunAsync(
-                AppSettings.Current, items, line => LogText.Text = line, default);
+                AppSettings.Current,
+                items,
+                line => LogText.Text = line,
+                default,
+                prebuiltPlan);
             Progress.Visibility = Visibility.Collapsed;
 
             var total = result.Outcomes.Sum(outcome => outcome.Mods.Count);
@@ -179,6 +225,7 @@ public sealed partial class TestPage : Page, ILocalizablePage
 
     private async void BtnAnalyze_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.UserAction("dependency_analysis_only");
         var items = SelectionItems();
         if (items.Count == 0)
         {
@@ -189,10 +236,10 @@ public sealed partial class TestPage : Page, ILocalizablePage
         Progress.Visibility = Visibility.Visible;
         try
         {
-            var result = await Task.Run(async () =>
+            var (graph, plan) = await Task.Run(async () =>
             {
                 using var session = new Cue4AnalysisSession();
-                return await DependencyScanner.RunAsync(
+                var scan = await DependencyScanner.ScanGraphAsync(
                     repakExe: null,
                     dotnetExe: null,
                     uassetCliDll: null,
@@ -205,15 +252,25 @@ public sealed partial class TestPage : Page, ILocalizablePage
                     session,
                     session,
                     new Cue4AssetParser());
+                var names = items
+                    .Select(item => item.FileName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var deployPlan = DeploymentPlanner.Build(
+                    names, scan.ConflictPairs, scan.Edges);
+                return (scan, deployPlan);
             });
 
+            _analysisItems = items;
+            _analysisPlan = plan;
+            PopulateAnalysis(graph);
             LogText.Text = string.Format(
                 Localizer.T("Analysis.RunSummary"),
-                result.Paks,
-                result.ParsedAssets,
-                result.Edges,
-                result.Unresolved,
-                result.Conflicts);
+                graph.Paks,
+                graph.ParsedAssets,
+                graph.Edges.Count,
+                graph.Unresolved,
+                graph.ConflictCount);
         }
         catch (Exception exc)
         {
@@ -223,6 +280,83 @@ public sealed partial class TestPage : Page, ILocalizablePage
         {
             Progress.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void PopulateAnalysis(DependencyScanGraph graph)
+    {
+        EdgeRows.Clear();
+        foreach (var edge in graph.EdgeDetails)
+        {
+            EdgeRows.Add(new EdgeRow(edge.FromMod, edge.ToMod, edge.AssetPath, edge.Confidence));
+        }
+
+        UnresolvedRows.Clear();
+        foreach (var item in graph.UnresolvedReferences)
+        {
+            UnresolvedRows.Add(new UnresolvedRow(item.Mod, item.Asset, item.Reference));
+        }
+
+        ErrorRows.Clear();
+        foreach (var item in graph.ParseErrors)
+        {
+            ErrorRows.Add(new ErrorRow(item.Mod, item.Asset, item.Error));
+        }
+
+        RefreshGroupRows();
+
+        AnalysisSummaryText.Text = string.Format(
+            Localizer.T("Analysis.DetailSummary"),
+            graph.Paks,
+            graph.ParsedAssets,
+            graph.EdgeDetails.Count,
+            graph.UnresolvedReferences.Count,
+            graph.ParseErrors.Count,
+            graph.ConflictCount,
+            GroupRows.Count);
+        AnalysisPanel.Visibility = Visibility.Visible;
+    }
+
+    private void RefreshGroupRows()
+    {
+        GroupRows.Clear();
+        if (_analysisPlan is null)
+        {
+            return;
+        }
+
+        foreach (var group in _analysisPlan.Groups)
+        {
+            GroupRows.Add(new GroupRow(
+                group.GroupId,
+                LocalizeGroupReason(group.Reason),
+                string.Join(", ", group.Mods),
+                string.Join("；", group.Evidence)));
+        }
+    }
+
+    private static string LocalizeGroupReason(string reason) =>
+        Localizer.T(reason switch
+        {
+            "isolated" => "Analysis.Reason.Isolated",
+            "dependency" => "Analysis.Reason.Dependency",
+            "strong_dependency" => "Analysis.Reason.StrongDependency",
+            "user_group" => "Analysis.Reason.UserGroup",
+            _ => "Analysis.Reason.Unknown",
+        });
+
+    private async void BtnRunGroups_Click(object sender, RoutedEventArgs e)
+    {
+        if (_analysisItems is null || _analysisItems.Count == 0 || _analysisPlan is null)
+        {
+            return;
+        }
+
+        await RunTestAsync(_analysisItems, _analysisPlan);
+    }
+
+    private void BtnHideAnalysis_Click(object sender, RoutedEventArgs e)
+    {
+        AnalysisPanel.Visibility = Visibility.Collapsed;
     }
 
     private void ReloadSelection()
@@ -285,4 +419,64 @@ public sealed class ModRow
     public string FilePath { get; }
     public string FileName { get; }
     public string FileSize { get; }
+}
+
+public sealed class EdgeRow
+{
+    public EdgeRow(string source, string target, string asset, string confidence)
+    {
+        Source = source;
+        Target = target;
+        Asset = asset;
+        Confidence = confidence;
+    }
+
+    public string Source { get; }
+    public string Target { get; }
+    public string Asset { get; }
+    public string Confidence { get; }
+}
+
+public sealed class UnresolvedRow
+{
+    public UnresolvedRow(string mod, string asset, string reference)
+    {
+        Mod = mod;
+        Asset = asset;
+        Reference = reference;
+    }
+
+    public string Mod { get; }
+    public string Asset { get; }
+    public string Reference { get; }
+}
+
+public sealed class ErrorRow
+{
+    public ErrorRow(string mod, string asset, string error)
+    {
+        Mod = mod;
+        Asset = asset;
+        Error = error;
+    }
+
+    public string Mod { get; }
+    public string Asset { get; }
+    public string Error { get; }
+}
+
+public sealed class GroupRow
+{
+    public GroupRow(string groupId, string reason, string mods, string evidence)
+    {
+        GroupId = groupId;
+        Reason = reason;
+        Mods = mods;
+        Evidence = evidence;
+    }
+
+    public string GroupId { get; }
+    public string Reason { get; }
+    public string Mods { get; }
+    public string Evidence { get; }
 }

@@ -61,6 +61,11 @@
                         <FontIcon Glyph="&#xE74D;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="NavDebugItem" Content="Debug" Tag="debug">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D9;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="NavAdvancedItem" Content="Advanced" Tag="advanced">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE713;" />

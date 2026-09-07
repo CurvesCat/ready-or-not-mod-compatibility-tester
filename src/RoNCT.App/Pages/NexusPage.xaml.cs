@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using RoNCT.App.Services;
@@ -7,7 +9,10 @@ namespace RoNCT.App.Pages;
 
 public sealed partial class NexusPage : Page, ILocalizablePage
 {
+    private const string ApiKeyUrl = "https://www.nexusmods.com/settings/api-keys";
+
     private readonly List<NexusModInfo> _identified = new();
+    private MainWindow? _window;
 
     public NexusPage()
     {
@@ -15,6 +20,9 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         ApplyLanguage();
         ApiKeyBox.Password = AppSettings.Current.NexusApiKey;
     }
+
+    public void AttachWindow(MainWindow window) =>
+        _window = window;
 
     public void ApplyLanguage()
     {
@@ -29,25 +37,90 @@ public sealed partial class NexusPage : Page, ILocalizablePage
 
     private async void BtnTutorial_Click(object sender, RoutedEventArgs e)
     {
+        _window?.SetAlwaysOnTop(true);
+
+        var steps = new TextBlock
+        {
+            Text = Localizer.T("Nexus.TutorialSteps"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+
+        var openButton = new Button
+        {
+            Content = Localizer.T("Nexus.OpenPage"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        openButton.Click += OpenApiPage_Click;
+
+        var copyButton = new Button
+        {
+            Content = Localizer.T("Nexus.CopyLink"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        copyButton.Click += CopyApiLink_Click;
+
+        var content = new StackPanel
+        {
+            MinWidth = 320,
+            Children =
+            {
+                steps,
+                openButton,
+                copyButton,
+            },
+        };
+
         var dialog = new ContentDialog
         {
             Title = Localizer.T("Nexus.TutorialTitle"),
-            Content = Localizer.T("Nexus.TutorialSteps"),
+            Content = content,
             CloseButtonText = Localizer.T("Nexus.TutorialClose"),
             XamlRoot = XamlRoot,
         };
+        dialog.Closed += (_, _) => _window?.SetAlwaysOnTop(false);
         await dialog.ShowAsync();
+    }
+
+    private void OpenApiPage_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.UserAction("nexus_open_api_page");
+        try
+        {
+            Process.Start(new ProcessStartInfo(ApiKeyUrl)
+            {
+                UseShellExecute = true,
+            });
+            StatusText.Text = Localizer.T("Nexus.PageOpened");
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("NexusPage open API page failed: " + exc.Message);
+            StatusText.Text = exc.Message;
+        }
+    }
+
+    private void CopyApiLink_Click(object sender, RoutedEventArgs e)
+    {
+        var package = new DataPackage();
+        package.SetText(ApiKeyUrl);
+        Clipboard.SetContent(package);
+        StatusText.Text = Localizer.T("Nexus.LinkCopied");
     }
 
     private void BtnSaveKey_Click(object sender, RoutedEventArgs e)
     {
         AppSettings.Current.NexusApiKey = ApiKeyBox.Password;
         AppSettings.Save();
+        AppLog.UserAction("nexus_key_saved");
         StatusText.Text = Localizer.T("Nexus.Saved");
     }
 
     private async void BtnIdentify_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.UserAction("nexus_identify_start");
         var key = ApiKeyBox.Password;
         if (string.IsNullOrEmpty(key))
         {
@@ -84,6 +157,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
 
     private async void BtnDeps_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.UserAction("nexus_deps_start");
         var key = ApiKeyBox.Password;
         if (string.IsNullOrEmpty(key) || _identified.Count == 0)
         {

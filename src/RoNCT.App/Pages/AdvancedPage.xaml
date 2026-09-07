@@ -32,6 +32,9 @@
             <TextBox x:Name="ExtraArgsBox" />
             <CheckBox x:Name="CloseRunningBox" />
             <CheckBox x:Name="AutoCalibrateBox" />
+            <ComboBox x:Name="SourceCombo" />
+            <ComboBox x:Name="DispositionCombo" />
+            <CheckBox x:Name="WarmupBox" />
 
             <TextBlock x:Name="TimingSectionText" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
             <TextBox x:Name="StableBox" />

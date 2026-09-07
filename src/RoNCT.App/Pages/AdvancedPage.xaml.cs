@@ -53,6 +53,29 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         ReportDirBox.Header = Localizer.T("Settings.ReportDir");
         BackupDirBox.Header = Localizer.T("Settings.BackupDir");
         QuarantineDirBox.Header = Localizer.T("Settings.QuarantineDir");
+        SourceCombo.Header = Localizer.T("Settings.Source");
+        DispositionCombo.Header = Localizer.T("Settings.Disposition");
+        WarmupBox.Content = Localizer.T("Settings.Warmup");
+        RefreshSourceCombo();
+        RefreshDispositionCombo();
+    }
+
+    private void RefreshSourceCombo()
+    {
+        var index = AppSettings.Current.Source == "installed" ? 1 : 0;
+        SourceCombo.Items.Clear();
+        SourceCombo.Items.Add(Localizer.T("Settings.Source.Folder"));
+        SourceCombo.Items.Add(Localizer.T("Settings.Source.Installed"));
+        SourceCombo.SelectedIndex = index;
+    }
+
+    private void RefreshDispositionCombo()
+    {
+        var index = AppSettings.Current.Disposition == "delete" ? 1 : 0;
+        DispositionCombo.Items.Clear();
+        DispositionCombo.Items.Add(Localizer.T("Settings.Disposition.Quarantine"));
+        DispositionCombo.Items.Add(Localizer.T("Settings.Disposition.Delete"));
+        DispositionCombo.SelectedIndex = index;
     }
 
     private void LoadSettings()
@@ -105,6 +128,9 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         cfg.ExtraArgs = ExtraArgsBox.Text.Trim();
         cfg.CloseRunning = CloseRunningBox.IsChecked == true;
         cfg.AutoCalibrate = AutoCalibrateBox.IsChecked == true;
+        cfg.Source = SourceCombo.SelectedIndex == 1 ? "installed" : "folder";
+        cfg.Disposition = DispositionCombo.SelectedIndex == 1 ? "delete" : "quarantine";
+        cfg.Warmup = WarmupBox.IsChecked == true;
         if (double.TryParse(StableBox.Text, out var v1)) cfg.StableSeconds = v1;
         if (double.TryParse(StartupBox.Text, out var v2)) cfg.StartupTimeoutSeconds = v2;
         if (double.TryParse(MenuHoldBox.Text, out var v3)) cfg.MenuHoldSeconds = v3;

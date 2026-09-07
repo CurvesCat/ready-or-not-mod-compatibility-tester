@@ -17,7 +17,6 @@ public sealed partial class QuarantinePage : Page, ILocalizablePage
     public void ApplyLanguage()
     {
         PageTitle.Text = Localizer.T("Nav.Quarantine");
-        PageBodyText.Text = Localizer.T("Page.Quarantine.Body");
         BtnOpenQuarantine.Content = Localizer.T("Quarantine.Open");
         BtnDeleteSelected.Content = Localizer.T("Quarantine.Delete");
         BtnEmpty.Content = Localizer.T("Quarantine.Empty");

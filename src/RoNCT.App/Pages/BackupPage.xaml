@@ -7,26 +7,35 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer>
-        <StackPanel Padding="24,16,24,24" Spacing="14">
-            <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-            <TextBlock x:Name="PageBodyText" Opacity="0.8" />
-
-            <TextBlock x:Name="BackupPathText" Opacity="0.75" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="BtnCreateBackup" Click="BtnCreateBackup_Click" />
-                <Button x:Name="BtnRestore" Click="BtnRestore_Click" />
-                <Button x:Name="BtnOpenBackup" Click="BtnOpenBackup_Click" />
-            </StackPanel>
-
-            <TextBlock x:Name="BackupListHeader" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
-            <ListView
-                x:Name="BackupList"
-                Height="280"
-                SelectionMode="None"
-                ScrollViewer.VerticalScrollBarVisibility="Auto"
-                ScrollViewer.VerticalScrollMode="Enabled" />
-            <TextBlock x:Name="StatusText" Opacity="0.8" TextWrapping="Wrap" />
+    <Grid Padding="24,16,24,24" RowSpacing="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="PageTitle" Grid.Row="0" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBlock x:Name="PageBodyText" Grid.Row="1" Opacity="0.8" />
+        <TextBlock x:Name="BackupPathText" Grid.Row="2" Opacity="0.75" />
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="BtnCreateBackup" Click="BtnCreateBackup_Click" />
+            <Button x:Name="BtnRestore" Click="BtnRestore_Click" />
+            <Button x:Name="BtnOpenBackup" Click="BtnOpenBackup_Click" />
         </StackPanel>
-    </ScrollViewer>
+        <TextBlock x:Name="BackupListHeader" Grid.Row="4" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+        <ListView
+            x:Name="BackupList"
+            Grid.Row="5"
+            SelectionMode="None"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollMode="Enabled" />
+        <TextBlock
+            x:Name="StatusText"
+            Grid.Row="6"
+            Opacity="0.8"
+            TextWrapping="Wrap" />
+    </Grid>
 </Page>

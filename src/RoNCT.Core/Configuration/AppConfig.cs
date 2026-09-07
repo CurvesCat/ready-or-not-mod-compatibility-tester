@@ -19,6 +19,9 @@ public sealed class AppConfig
     public double StartupTimeoutSeconds { get; set; } = 120;
     public double MenuHoldSeconds { get; set; } = 6;
     public bool AutoCalibrate { get; set; } = true;
+    public string Source { get; set; } = "folder";
+    public string Disposition { get; set; } = "quarantine";
+    public bool Warmup { get; set; }
 
     // Directories and backup
     public string ReportDir { get; set; } = string.Empty;

@@ -14,6 +14,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
 
     private readonly List<NexusModInfo> _identified = new();
     private MainWindow? _window;
+    private bool _dialogOpen;
     private Dictionary<string, NexusMappingRecord> _mapping = new(
         StringComparer.OrdinalIgnoreCase);
 
@@ -84,7 +85,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             XamlRoot = XamlRoot,
         };
         dialog.Closed += (_, _) => _window?.SetAlwaysOnTop(false);
-        await dialog.ShowAsync();
+        await ShowExclusiveDialogAsync(dialog);
     }
 
     private void OpenApiPage_Click(object sender, RoutedEventArgs e)
@@ -399,7 +400,7 @@ public sealed partial class NexusPage : Page, ILocalizablePage
             XamlRoot = XamlRoot,
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await ShowExclusiveDialogAsync(dialog);
         if (result != ContentDialogResult.Primary || list.SelectedIndex < 0)
         {
             return;
@@ -433,6 +434,30 @@ public sealed partial class NexusPage : Page, ILocalizablePage
         row.Url = info.ModUrl ?? string.Empty;
         StatusText.Text = string.Format(
             Localizer.T("Nexus.ConfirmSaved"), info.Name ?? row.FileName);
+    }
+
+    /// <summary>
+    /// WinUI allows only one ContentDialog per XamlRoot at a time. This guard
+    /// prevents a second click/event from trying to open another dialog while
+    /// one is still visible, which would crash with a COM exception.
+    /// </summary>
+    private async Task<ContentDialogResult> ShowExclusiveDialogAsync(
+        ContentDialog dialog)
+    {
+        if (_dialogOpen)
+        {
+            return ContentDialogResult.None;
+        }
+
+        _dialogOpen = true;
+        try
+        {
+            return await dialog.ShowAsync();
+        }
+        finally
+        {
+            _dialogOpen = false;
+        }
     }
 
     private void BtnIgnoreResult_Click(object sender, RoutedEventArgs e)

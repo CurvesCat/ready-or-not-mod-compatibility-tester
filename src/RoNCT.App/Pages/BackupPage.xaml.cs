@@ -22,6 +22,7 @@ public sealed partial class BackupPage : Page, ILocalizablePage
         BtnCreateBackup.Content = Localizer.T("Backup.Create");
         BtnRestore.Content = Localizer.T("Backup.Restore");
         BtnOpenBackup.Content = Localizer.T("Backup.Open");
+        BtnDeleteBackup.Content = Localizer.T("Backup.Delete");
         BackupListHeader.Text = Localizer.T("Backup.ListHeader");
         BackupPathText.Text = Localizer.T("Backup.Path") + " " + BackupDirectory();
     }
@@ -98,7 +99,62 @@ public sealed partial class BackupPage : Page, ILocalizablePage
     {
         var dir = BackupDirectory();
         Directory.CreateDirectory(dir);
-        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            UseShellExecute = true,
+            Arguments = $"\"{dir}\"",
+        });
+    }
+
+    private async void BtnDeleteBackup_Click(object sender, RoutedEventArgs e)
+    {
+        var dir = BackupDirectory();
+        if (!Directory.Exists(dir) ||
+            (!File.Exists(Path.Combine(dir, BackupService.ManifestName)) &&
+             !Directory.EnumerateFiles(dir, "*.pak").Any()))
+        {
+            StatusText.Text = Localizer.T("Backup.NoBackup");
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = Localizer.T("Backup.DeleteTitle"),
+            Content = Localizer.T("Backup.DeleteConfirm"),
+            PrimaryButtonText = Localizer.T("Backup.Delete"),
+            CloseButtonText = Localizer.T("Nexus.TutorialClose"),
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var manifestPath = Path.Combine(dir, BackupService.ManifestName);
+        try
+        {
+            if (File.Exists(manifestPath))
+            {
+                File.Delete(manifestPath);
+                deleted++;
+            }
+            foreach (var pak in Directory.EnumerateFiles(dir, "*.pak"))
+            {
+                File.Delete(pak);
+                deleted++;
+            }
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("BackupPage delete failed: " + exc.Message);
+            StatusText.Text = exc.Message;
+        }
+        AppLog.UserAction($"backup_deleted_files: {deleted}");
+        StatusText.Text = string.Format(Localizer.T("Backup.Deleted"), deleted);
+        RefreshBackupList();
     }
 
     private void RefreshBackupList()

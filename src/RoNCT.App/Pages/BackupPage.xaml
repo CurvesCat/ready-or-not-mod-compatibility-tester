@@ -24,6 +24,7 @@
             <Button x:Name="BtnCreateBackup" Click="BtnCreateBackup_Click" />
             <Button x:Name="BtnRestore" Click="BtnRestore_Click" />
             <Button x:Name="BtnOpenBackup" Click="BtnOpenBackup_Click" />
+            <Button x:Name="BtnDeleteBackup" Click="BtnDeleteBackup_Click" />
         </StackPanel>
         <TextBlock x:Name="BackupListHeader" Grid.Row="4" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
         <ListView

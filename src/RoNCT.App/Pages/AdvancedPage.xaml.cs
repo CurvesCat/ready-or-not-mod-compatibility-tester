@@ -104,9 +104,15 @@ public sealed partial class AdvancedPage : Page, ILocalizablePage
         BackupEnabledBox.IsChecked = cfg.BackupEnabled;
         BackupMaxFileBox.Text = cfg.BackupMaxFileMb.ToString();
         BackupMaxTotalBox.Text = cfg.BackupMaxTotalMb.ToString();
-        ReportDirBox.Text = cfg.ReportDir;
-        BackupDirBox.Text = cfg.BackupDir;
-        QuarantineDirBox.Text = cfg.QuarantineDir;
+        ReportDirBox.Text = string.IsNullOrEmpty(cfg.ReportDir)
+            ? Path.Combine(AppSettings.DataDirectory, "reports")
+            : cfg.ReportDir;
+        BackupDirBox.Text = string.IsNullOrEmpty(cfg.BackupDir)
+            ? Path.Combine(AppSettings.DataDirectory, "backup")
+            : cfg.BackupDir;
+        QuarantineDirBox.Text = string.IsNullOrEmpty(cfg.QuarantineDir)
+            ? Path.Combine(AppSettings.DataDirectory, "quarantine")
+            : cfg.QuarantineDir;
     }
 
     private static string ResolveTool(string configured, params string[] parts)

@@ -1,5 +1,6 @@
 using RoNCT.Analysis;
 using RoNCT.Core.Analysis;
+using RoNCT.Core.Plan;
 using RoNCT.Core.Selection;
 
 namespace RoNCT.App.Services;
@@ -22,9 +23,66 @@ public sealed class DependencyScanResult
     public int Conflicts { get; }
 }
 
+public sealed class DependencyScanGraph
+{
+    public DependencyScanGraph(
+        int paks,
+        int parsedAssets,
+        IReadOnlyList<DependencyEdge> edges,
+        int unresolved,
+        IReadOnlyList<IReadOnlyList<string>> conflictPairs,
+        int conflictCount)
+    {
+        Paks = paks;
+        ParsedAssets = parsedAssets;
+        Edges = edges;
+        Unresolved = unresolved;
+        ConflictPairs = conflictPairs;
+        ConflictCount = conflictCount;
+    }
+
+    public int Paks { get; }
+    public int ParsedAssets { get; }
+    public IReadOnlyList<DependencyEdge> Edges { get; }
+    public int Unresolved { get; }
+    public IReadOnlyList<IReadOnlyList<string>> ConflictPairs { get; }
+    public int ConflictCount { get; }
+}
+
 public static class DependencyScanner
 {
     public static async Task<DependencyScanResult> RunAsync(
+        string? repakExe,
+        string? dotnetExe,
+        string? uassetCliDll,
+        string engine,
+        IReadOnlyList<ModItem> mods,
+        int assetLimit = 100,
+        CancellationToken cancellationToken = default,
+        IPakInspector? pakInspector = null,
+        IPakFileReader? pakFileReader = null,
+        IAssetParser? assetParser = null)
+    {
+        var graph = await ScanGraphAsync(
+            repakExe,
+            dotnetExe,
+            uassetCliDll,
+            engine,
+            mods,
+            assetLimit,
+            cancellationToken,
+            pakInspector,
+            pakFileReader,
+            assetParser);
+        return new DependencyScanResult(
+            graph.Paks,
+            graph.ParsedAssets,
+            graph.Edges.Count,
+            graph.Unresolved,
+            graph.ConflictCount);
+    }
+
+    public static async Task<DependencyScanGraph> ScanGraphAsync(
         string? repakExe,
         string? dotnetExe,
         string? uassetCliDll,
@@ -53,6 +111,14 @@ public static class DependencyScanner
             (pakPath, internalPath) =>
                 ReadBytesSafe(pakPath, internalPath, repakExe, pakFileReader)
                 ?? Array.Empty<byte>());
+        var conflictPairs = conflicts
+            .Where(conflict => conflict.Kind == StaticConflictKind.Overwrite)
+            .Select(conflict => (IReadOnlyList<string>)conflict.Providers
+                .Select(provider => provider.PakName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(2)
+                .ToArray())
+            .ToArray();
 
         var edges = new HashSet<(string From, string To)>();
         var unresolved = 0;
@@ -139,8 +205,16 @@ public static class DependencyScanner
             }
         }
 
-        return new DependencyScanResult(
-            inventories.Count, parsedAssets, edges.Count, unresolved, conflicts.Count);
+        var dependencyEdges = edges
+            .Select(edge => new DependencyEdge(edge.From, edge.To))
+            .ToArray();
+        return new DependencyScanGraph(
+            inventories.Count,
+            parsedAssets,
+            dependencyEdges,
+            unresolved,
+            conflictPairs,
+            conflicts.Count);
     }
 
     private static async Task<IReadOnlyList<string>?> ListAssetsSafeAsync(

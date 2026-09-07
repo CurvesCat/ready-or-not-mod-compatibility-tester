@@ -1,6 +1,6 @@
 # M2: In-Process Asset Analysis (CUE4Parse only) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace per-asset `dotnet UAssetCLI` subprocess parsing and per-pak
 `repak` subprocesses with one in-process CUE4Parse library so a full dependency
@@ -70,7 +70,7 @@ Release-mode spike against the real Ready or Not Mod folder (38 mod paks,
   - `interface IAssetParser { AssetImports Parse(byte[] uasset, byte[]? uexp); }`
   - `sealed record AssetImports(IReadOnlyList<string> ImportNames, IReadOnlyList<string> SoftReferences);`
 
-- [ ] **Step 1: Create the project files**
+- [x] **Step 1: Create the project files**
 
 `src/RoNCT.Analysis/RoNCT.Analysis.csproj`:
 
@@ -118,14 +118,14 @@ Versions were verified with `dotnet package search` and the NuGet flat
 container index (CUE4Parse latest = `1.2.2.202609`; UAssetAPI latest = `1.1.0`
 and is intentionally unused).
 
-- [ ] **Step 2: Add to solution and reference from tests**
+- [x] **Step 2: Add to solution and reference from tests**
 
 ```powershell
 dotnet sln RoNCT.sln add src/RoNCT.Analysis/RoNCT.Analysis.csproj
 dotnet add tests/RoNCT.Tests/RoNCT.Tests.csproj reference src/RoNCT.Analysis/RoNCT.Analysis.csproj
 ```
 
-- [ ] **Step 3: Build and commit**
+- [x] **Step 3: Build and commit**
 
 ```powershell
 dotnet build RoNCT.sln
@@ -142,7 +142,7 @@ git commit -m "feat(analysis): scaffold in-process CUE4Parse analysis library wi
 **Interfaces:** consumes Task 1 abstractions; produces
 `Cue4PakInspector`, `Cue4PakReader`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```csharp
 using RoNCT.Analysis;
@@ -176,9 +176,9 @@ public sealed class Cue4PakTests
 }
 ```
 
-- [ ] **Step 2: Run test (expect fail until implemented)**
+- [x] **Step 2: Run test (expect fail until implemented)**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```csharp
 using CUE4Parse.UE4.Pak;
@@ -211,7 +211,7 @@ public sealed class Cue4PakReader : IPakFileReader
 }
 ```
 
-- [ ] **Step 4: Run test (expect pass), then commit**
+- [x] **Step 4: Run test (expect pass), then commit**
 
 ### Task 3: Implement CUE4Parse in-process asset parser
 
@@ -223,7 +223,7 @@ public sealed class Cue4PakReader : IPakFileReader
 cooked package header directly (import map + soft object paths) through the
 permissive CUE4Parse library; exports stay lazy and are never deserialized.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```csharp
 [Fact]
@@ -239,9 +239,9 @@ public void ParsesImportTable_OnRealSampleAsset()
 }
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```csharp
 using CUE4Parse.FileProvider;
@@ -320,7 +320,7 @@ If the compiler reports a member rename (e.g. `SoftObjectPaths[i]` vs
 `ToString()`), adjust to the exact member name reported. Soft references stay
 best-effort; import paths are the primary dependency signal.
 
-- [ ] **Step 4: Run test (expect pass), then commit**
+- [x] **Step 4: Run test (expect pass), then commit**
 
 ### Task 4: Wire in-process path into DependencyScanner (App services)
 
@@ -329,21 +329,21 @@ best-effort; import paths are the primary dependency signal.
 - Modify: `src/RoNCT.App/Services/DependencyScanner.cs`
 - Modify: `src/RoNCT.App/Pages/TestPage.xaml.cs` (use in-process adapters)
 
-- [ ] Step 1: Add project reference
-- [ ] Step 2: Thread `IPakInspector`, `IPakFileReader`, and `IAssetParser`
+- [x] Step 1: Add project reference
+- [x] Step 2: Thread `IPakInspector`, `IPakFileReader`, and `IAssetParser`
   through `RunAsync` as optional parameters with null fallback to the
   repak/UAssetCLI subprocess path
-- [ ] Step 3: In `TestPage`, prefer the in-process adapters when CUE4Parse is
+- [x] Step 3: In `TestPage`, prefer the in-process adapters when CUE4Parse is
   available and stop requiring configured repak/dotnet/UAssetCLI paths for the
   analyze action
-- [ ] Step 4: Build, run full tests (target: existing 31+ pass)
-- [ ] Step 5: Benchmark on the real 38-mod folder: record before/after seconds
-- [ ] Step 6: Commit
+- [x] Step 4: Build, run full tests (target: existing 31+ pass)
+- [x] Step 5: Benchmark on the real 38-mod folder: record before/after seconds
+- [x] Step 6: Commit
 
 ### Task 5: Milestone verification
 
-- [ ] Full test suite green.
-- [ ] Benchmark recorded in `docs/benchmarks/m2-inprocess.md`.
-- [ ] Architecture docs updated (no GPL in-process dependency; CUE4Parse-only
+- [x] Full test suite green.
+- [x] Benchmark recorded in `docs/benchmarks/m2-inprocess.md`.
+- [x] Architecture docs updated (no GPL in-process dependency; CUE4Parse-only
   wording).
-- [ ] `git status` clean.
+- [x] `git status` clean.

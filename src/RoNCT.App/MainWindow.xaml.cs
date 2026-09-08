@@ -2,7 +2,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using RoNCT.App.Pages;
@@ -17,6 +16,8 @@ public sealed partial class MainWindow : Window
     private const string ContactEmail = "ronct.dev@icloud.com";
     private const string GitHubUrl =
         "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester";
+    private const string LicenseUrl =
+        "https://github.com/CurvesCat/ready-or-not-mod-compatibility-tester/blob/main/LICENSE";
     private const string LicenseName = "PolyForm Noncommercial 1.0.0";
 
     private readonly Dictionary<string, Page> _pages = new();
@@ -255,6 +256,7 @@ public sealed partial class MainWindow : Window
             CloseButtonText = Localizer.T("Help.Close"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = RootGrid.XamlRoot,
+            RequestedTheme = RootGrid.ActualTheme,
         };
         await ShowExclusiveDialogAsync(dialog);
     }
@@ -279,12 +281,11 @@ public sealed partial class MainWindow : Window
             Content = Localizer.T("About.GitHub"),
             NavigateUri = new Uri(GitHubUrl),
         };
-        var logo = new Image
+        var licenseButton = new HyperlinkButton
         {
-            Source = new BitmapImage(new Uri("ms-appx:///Assets/logo_meme.png")),
-            Width = 320,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 8),
+            Content = string.Format(Localizer.T("About.License"), LicenseName),
+            NavigateUri = new Uri(LicenseUrl),
+            Margin = new Thickness(0, 12, 0, 0),
         };
         var content = new StackPanel
         {
@@ -292,7 +293,6 @@ public sealed partial class MainWindow : Window
             Spacing = 4,
             Children =
             {
-                logo,
                 heading,
                 new TextBlock
                 {
@@ -314,13 +314,7 @@ public sealed partial class MainWindow : Window
                 },
                 mailButton,
                 githubButton,
-                new TextBlock
-                {
-                    Text = string.Format(Localizer.T("About.License"), LicenseName),
-                    Margin = new Thickness(0, 12, 0, 0),
-                    TextWrapping = TextWrapping.Wrap,
-                    Opacity = 0.7,
-                },
+                licenseButton,
             },
         };
 
@@ -331,6 +325,7 @@ public sealed partial class MainWindow : Window
             CloseButtonText = Localizer.T("About.Close"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = RootGrid.XamlRoot,
+            RequestedTheme = RootGrid.ActualTheme,
         };
         await ShowExclusiveDialogAsync(dialog);
     }

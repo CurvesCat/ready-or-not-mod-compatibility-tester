@@ -69,6 +69,7 @@ public static class CalibrationService
                 {
                     windowAt = elapsed;
                     mainHwnd = windows[0].Hwnd;
+                    GameMenuOcrDetector.WarmUp(mainHwnd);
                     log($"Calibration: main window appeared at {windowAt:0.0}s.");
                 }
                 if (windows.Count > 0 && windowAt is not null &&
@@ -108,7 +109,7 @@ public static class CalibrationService
                     log($"Calibration: main-menu idle detected at {menuAt:0.0}s.");
                 }
                 if (windowAt is not null && menuAt is null &&
-                    mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 2.5)
+                    mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 1.5)
                 {
                     lastOcrAt = now;
                     var ocr = GameMenuOcrDetector.ScanBlocking(mainHwnd);

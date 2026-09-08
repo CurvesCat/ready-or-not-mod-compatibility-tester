@@ -184,12 +184,13 @@ public sealed class GameSession
             var now = DateTime.UtcNow;
             var windows = GameProcessService.FindGameMainWindows(pids);
 
-            if (windows.Count > 0 && windowAt is null)
-            {
-                windowAt = now;
-                stableDeadline = now.AddSeconds(_stableSeconds);
-                mainHwnd = windows[0].Hwnd;
-                _emitLog("  Game main window appeared, observing...");
+                if (windows.Count > 0 && windowAt is null)
+                {
+                    windowAt = now;
+                    stableDeadline = now.AddSeconds(_stableSeconds);
+                    mainHwnd = windows[0].Hwnd;
+                    GameMenuOcrDetector.WarmUp(mainHwnd);
+                    _emitLog("  Game main window appeared, observing...");
             }
 
             if (windowAt is not null && windows.Count > 0 &&
@@ -257,7 +258,7 @@ public sealed class GameSession
                 _emitLog("  Detected main-menu idle, entering confirmation window...");
             }
             if (windowAt is not null && menuAt is null &&
-                mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 2.5)
+                mainHwnd != 0 && (now - lastOcrAt).TotalSeconds >= 1.5)
             {
                 lastOcrAt = now;
                 var ocr = GameMenuOcrDetector.ScanBlocking(mainHwnd);

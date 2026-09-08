@@ -39,6 +39,18 @@ public static class GameMenuOcrDetector
         }
     }
 
+    public static void WarmUp(nint hwnd)
+    {
+        try
+        {
+            using var bitmap = CaptureWindow(hwnd);
+        }
+        catch
+        {
+            // best effort; OCR will retry on its normal schedule
+        }
+    }
+
     public static async Task<OcrScanResult> ScanAsync(nint hwnd)
     {
         var engine = EnsureEngine();
@@ -48,24 +60,9 @@ public static class GameMenuOcrDetector
         }
 
         using var bitmap = CaptureWindow(hwnd);
-        var first = bitmap is null
+        return bitmap is null
             ? new OcrScanResult(false, Array.Empty<string>())
             : await ScanBitmapAsync(engine, bitmap);
-        if (first.Lines.Count(line => line.Any(char.IsLetter)) >= 2)
-        {
-            return first;
-        }
-
-        using var screen = CaptureVisibleScreen(hwnd);
-        if (screen is null)
-        {
-            return first;
-        }
-        var second = await ScanBitmapAsync(engine, screen);
-        return second.Lines.Count(line => line.Any(char.IsLetter)) >=
-            first.Lines.Count(line => line.Any(char.IsLetter))
-            ? second
-            : first;
     }
 
     private static async Task<OcrScanResult> ScanBitmapAsync(
@@ -146,41 +143,6 @@ public static class GameMenuOcrDetector
             {
                 graphics.ReleaseHdc(hdc);
             }
-            return bitmap;
-        }
-        catch
-        {
-            bitmap.Dispose();
-            return null;
-        }
-    }
-
-    private static Bitmap? CaptureVisibleScreen(nint hwnd)
-    {
-        if (!GetWindowRect(hwnd, out var rect) ||
-            rect.Right <= rect.Left ||
-            rect.Bottom <= rect.Top)
-        {
-            return null;
-        }
-
-        var width = rect.Right - rect.Left;
-        var height = rect.Bottom - rect.Top;
-        if (width <= 0 || height <= 0 || width > 8000 || height > 8000)
-        {
-            return null;
-        }
-
-        var bitmap = new Bitmap(width, height);
-        try
-        {
-            using var graphics = Graphics.FromImage(bitmap);
-            graphics.CopyFromScreen(
-                rect.Left,
-                rect.Top,
-                0,
-                0,
-                new Size(width, height));
             return bitmap;
         }
         catch

@@ -244,12 +244,10 @@ public sealed partial class MainWindow : Window
             Content = Localizer.T("About.GitHub"),
             NavigateUri = new Uri(GitHubUrl),
         };
-        var isDark = RootGrid.ActualTheme == ElementTheme.Dark;
-        var logoName = isDark ? "Assets/logo_dark.png" : "Assets/logo_light.png";
         var logo = new Image
         {
-            Source = new BitmapImage(new Uri($"ms-appx:///{logoName}")),
-            Width = 300,
+            Source = new BitmapImage(new Uri("ms-appx:///Assets/logo_meme.png")),
+            Width = 320,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 8),
         };

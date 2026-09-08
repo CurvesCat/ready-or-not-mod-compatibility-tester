@@ -2,6 +2,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using System.Diagnostics;
 using RoNCT.App.Pages;
 using RoNCT.App.Services;
@@ -243,12 +244,22 @@ public sealed partial class MainWindow : Window
             Content = Localizer.T("About.GitHub"),
             NavigateUri = new Uri(GitHubUrl),
         };
+        var isDark = RootGrid.ActualTheme == ElementTheme.Dark;
+        var logoName = isDark ? "Assets/logo_dark.png" : "Assets/logo_light.png";
+        var logo = new Image
+        {
+            Source = new BitmapImage(new Uri($"ms-appx:///{logoName}")),
+            Width = 300,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
         var content = new StackPanel
         {
             MinWidth = 380,
             Spacing = 4,
             Children =
             {
+                logo,
                 heading,
                 new TextBlock
                 {

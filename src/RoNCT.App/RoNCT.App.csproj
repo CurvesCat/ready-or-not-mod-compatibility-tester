@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets\app_icon.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\logo_meme.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Localization\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 using RoNCT.App.Pages;
 using RoNCT.App.Services;
@@ -21,6 +22,7 @@ public sealed partial class MainWindow : Window
     private readonly Dictionary<string, Page> _pages = new();
     private bool _initializingTheme;
     private bool _dialogOpen;
+    private nint _windowIcon;
 
     public MainWindow()
     {
@@ -37,6 +39,7 @@ public sealed partial class MainWindow : Window
         if (File.Exists(iconPath))
         {
             AppWindow.SetIcon(iconPath);
+            ApplyTaskbarIcon(iconPath);
         }
 
         // The translucent system backdrop follows the OS theme, which keeps the
@@ -50,6 +53,38 @@ public sealed partial class MainWindow : Window
         ShowPage("test");
         VersionText.Text = $"v{GetInformationalVersion()}";
     }
+
+    private void ApplyTaskbarIcon(string iconPath)
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            _windowIcon = LoadImage(
+                IntPtr.Zero,
+                iconPath,
+                1, // IMAGE_ICON
+                0,
+                0,
+                0x10); // LR_LOADFROMFILE
+            if (_windowIcon != 0)
+            {
+                SendMessage(hwnd, 0x0080, (nint)1, _windowIcon); // WM_SETICON ICON_BIG
+                SendMessage(hwnd, 0x0080, (nint)0, _windowIcon); // WM_SETICON ICON_SMALL
+            }
+        }
+        catch (Exception exc)
+        {
+            AppLog.Error("MainWindow taskbar icon failed: " + exc.Message);
+        }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern nint LoadImage(
+        nint hInstance, string name, uint type, int cx, int cy, uint fuLoad);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern nint SendMessage(
+        nint hwnd, uint msg, nint wParam, nint lParam);
 
     private static string GetInformationalVersion()
     {

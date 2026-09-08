@@ -1,0 +1,36 @@
+RoNCT 1.0.0 - Third-Party Notices
+
+This release is a self-contained .NET application and dynamically links to
+the following third-party components under their own licenses:
+
+1. .NET Runtime and libraries
+   - Project: https://github.com/dotnet/runtime
+   - License: MIT (https://github.com/dotnet/runtime/blob/main/LICENSE.TXT)
+
+2. Windows App SDK / WinUI 3
+   - Project: https://github.com/microsoft/WindowsAppSDK
+   - License: MIT (https://github.com/microsoft/WindowsAppSDK/blob/main/LICENSE)
+
+3. CUE4Parse and parsing dependencies
+   - Project: https://github.com/FabianFG/CUE4Parse
+   - License: see https://github.com/FabianFG/CUE4Parse/blob/master/LICENSE
+
+4. CommunityToolkit.HighPerformance
+   - Project: https://github.com/CommunityToolkit/dotnet
+   - License: MIT
+
+5. BouncyCastle.Cryptography
+   - Project: https://github.com/bcgit/bc-csharp
+   - License: MIT
+
+6. Blake3.NET
+   - Project: https://github.com/xoofx/Blake3.NET
+   - License: MIT
+
+7. System.Drawing.Common
+   - Project: https://github.com/dotnet/winforms
+   - License: MIT
+
+Upstream license texts and notices are available from the projects listed
+above. RoNCT does not bundle or invoke repak, UAssetCLI, or a separate Python
+runtime in the C# release.

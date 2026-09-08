@@ -17,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Assets\AppIcon.ico" />
+    <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Localization\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -41,4 +41,22 @@
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- WinUI 3 builds XBF files into the output directory but dotnet publish
+       does not always include them. Without them the app crashes with a
+       XamlParseException, so copy every XBF into the publish output. -->
+  <Target Name="CopyXbfToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <XbfForPublish Include="$(TargetDir)**\*.xbf" />
+      <PriForPublish Include="$(TargetDir)*.pri" />
+    </ItemGroup>
+    <Copy
+        SourceFiles="@(XbfForPublish)"
+        DestinationFiles="@(XbfForPublish->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
+        SkipUnchangedFiles="true" />
+    <Copy
+        SourceFiles="@(PriForPublish)"
+        DestinationFiles="@(PriForPublish->'$(PublishDir)%(Filename)%(Extension)')"
+        SkipUnchangedFiles="true" />
+  </Target>
 </Project>
